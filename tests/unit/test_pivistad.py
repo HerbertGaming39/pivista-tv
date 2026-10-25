@@ -72,6 +72,26 @@ class DispatchTests(unittest.TestCase):
         self.assertTrue(response["ok"])
         self.assertEqual(response["data"]["service"], "pivistad")
 
+    def test_protocol_echoes_request_id(self):
+        """The launcher drops responses that do not carry its request id."""
+        server = pivistad.Server("/tmp/does-not-matter.sock", service_with(StubRunner()), "root", {0})
+        response = server._process(json.dumps({"id": 42, "action": "ping"}).encode())
+        self.assertEqual(response["id"], 42)
+        self.assertTrue(response["ok"])
+
+    def test_protocol_echoes_request_id_on_error(self):
+        server = pivistad.Server("/tmp/does-not-matter.sock", service_with(StubRunner()), "root", {0})
+        response = server._process(json.dumps({"id": "abc", "action": "missing.action"}).encode())
+        self.assertEqual(response["id"], "abc")
+        self.assertFalse(response["ok"])
+        self.assertEqual(response["error"]["code"], "unknown_action")
+
+    def test_protocol_rejects_non_scalar_request_id(self):
+        server = pivistad.Server("/tmp/does-not-matter.sock", service_with(StubRunner()), "root", {0})
+        response = server._process(json.dumps({"id": {"bad": True}, "action": "ping"}).encode())
+        self.assertIsNone(response["id"])
+        self.assertTrue(response["ok"])
+
 
 class NetworkTests(unittest.TestCase):
     def test_scan_parses_escaped_colons_and_deduplicates(self):

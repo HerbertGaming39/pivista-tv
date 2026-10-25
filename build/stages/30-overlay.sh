@@ -20,7 +20,9 @@ stage_30_overlay() {
 
   step "Installing documentation and licences"
   install -d -m 0755 "$ROOT_MNT/usr/share/doc/pivista"
-  install -m 0644 "${PROJECT_DIR}/README.md" "$ROOT_MNT/usr/share/doc/pivista/README.md" 2>/dev/null || true
+  # The release README contains the current artifact checksum and is updated
+  # after sealing, so it is not copied into the image. The image gets a stable
+  # README from system/rootfs plus the full docs/ tree.
   rsync -a --chown=root:root "${PROJECT_DIR}/docs/" "$ROOT_MNT/usr/share/doc/pivista/"
 
   step "Installing launcher QML and assets"
@@ -99,7 +101,9 @@ PY
   # apply numeric ownership afterwards.
   install -d -m 0750 "$ROOT_MNT${PIVISTA_HOME}" \
     "$ROOT_MNT${PIVISTA_HOME}/.config" \
+    "$ROOT_MNT${PIVISTA_HOME}/.config/pivista" \
     "$ROOT_MNT${PIVISTA_HOME}/.local/share" \
+    "$ROOT_MNT${PIVISTA_HOME}/.local/share/pivista" \
     "$ROOT_MNT${PIVISTA_HOME}/.cache"
   chown -R "${PIVISTA_UID}:${PIVISTA_GID}" "$ROOT_MNT${PIVISTA_HOME}"
   install -d -m 0755 "$ROOT_MNT${PIVISTA_RUNTIME}"
@@ -114,10 +118,29 @@ PY
   # Vendor first-boot assistants are replaced by PiVista's own wizard. The
   # stock userconf service would open an account dialog on tty8; sshswitch has
   # no SSH server to switch on because stage 40 removes it.
-  for vendor_unit in userconfig.service sshswitch.service; do
-    rm -f "$ROOT_MNT/etc/systemd/system/multi-user.target.wants/${vendor_unit}"
+  #
+  # cloud-init is disabled deliberately: its Raspberry Pi OS default user is
+  # `pi` with NOPASSWD sudo, and it runs on first boot even though the build
+  # removed that account. Leaving it enabled would silently recreate `pi`
+  # after the image left the build host. The seed files are removed too, so
+  # re-enabling cloud-init by accident cannot create a hidden sudo account.
+  local vendor_unit
+  for vendor_unit in userconfig.service sshswitch.service \
+                     cloud-init.target cloud-init-local.service \
+                     cloud-config.service cloud-final.service \
+                     cloud-init-main.service cloud-init-network.service \
+                     cloud-init-hotplugd.socket regenerate_ssh_host_keys.service; do
+    find "$ROOT_MNT/etc/systemd/system" -type l -name "$vendor_unit" -delete 2>/dev/null || true
     chroot_run systemctl mask "$vendor_unit" >/dev/null 2>&1 || true
   done
+  install -d -m 0755 "$ROOT_MNT/etc/cloud"
+  cat > "$ROOT_MNT/etc/cloud/cloud-init.disabled" <<'EOF'
+# PiVista TV disables cloud-init. First boot is owned by pivista-firstboot.sh
+# and the launcher wizard; the vendor default would recreate a `pi` account
+# with passwordless sudo after this image's account cleanup.
+EOF
+  chmod 0644 "$ROOT_MNT/etc/cloud/cloud-init.disabled"
+  rm -f "$BOOT_MNT/user-data" "$BOOT_MNT/meta-data" "$BOOT_MNT/network-config"
   # systemctl cannot talk to a running manager inside the chroot; set the
   # default target the way systemctl does, by symlink.
   ln -sf /lib/systemd/system/graphical.target "$ROOT_MNT/etc/systemd/system/default.target"

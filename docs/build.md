@@ -34,7 +34,7 @@ anything missing.
 | `10-base` | Download + SHA-256 verify the pinned image, decompress, grow partition 2, `resize2fs`, loop-mount, bind `/dev /proc /sys` | `state/10-base.done` |
 | `20-packages` | `apt-get update`, install `[runtime]`, install `[build]` dependencies, record versions | keyed by hash of `packages.lock` |
 | `25-launcher` | Copy C++/QML sources into the chroot, CMake build for arm64, install `/usr/bin/pivista-launcher`, run `--version` | keyed by hash of `launcher/` |
-| `30-overlay` | Install `system/rootfs`, QML, web catalog, daemon, branding, account, units, boot cmdline, docs | `state/30-overlay.done` |
+| `30-overlay` | Install `system/rootfs`, QML, web catalog, daemon, branding, account, units, boot cmdline, docs; disable cloud-init and remove its seed; mask SSH host-key regeneration | `state/30-overlay.done` |
 | `40-finalize` | Purge build deps with a post-purge launcher check, clean apt, reset machine-id, harden journald/logind, scan for credentials | `state/40-finalize.done` |
 | `50-image` | Unmount, `e2fsck -fn`, record size | — |
 | `60-validate` | `tests/image/validate_image.py` mounts read-only and checks the image | — |
@@ -55,6 +55,9 @@ controls qemu-user parallelism.
 - The launcher is recompiled only when `launcher/src`, `launcher/qml`,
   `launcher/assets` or `CMakeLists.txt` change. QML-only changes rebuild the
   overlay; CMake still re-links the binary because QML is part of its digest.
+- Stage 40 purges the build toolchain. If a later source change needs a launcher
+  rebuild, stage 25 restores the build packages first; this is why an incremental
+  build after a finalized image still works.
 - `image` reuses a root filesystem with a completed `40-finalize` marker. Run
   `./build.sh build` after editing system files, or set `PIVISTA_FORCE_BUILD=1`.
 - On the reference WSL2 host, a no-op `build` (reuse + overlay + finalize) took

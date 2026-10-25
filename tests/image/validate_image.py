@@ -101,6 +101,8 @@ def check_boot_files(boot: Path, cmdline: str | None, root_uuid: str) -> None:
 
     overlays = boot / "overlays"
     record("boot overlays directory", overlays.is_dir() and any(overlays.iterdir()))
+    record("cloud-init seed files removed",
+           not any((boot / name).exists() for name in ("user-data", "meta-data", "network-config")))
 
     config = (boot / "config.txt").read_text(errors="replace") if (boot / "config.txt").is_file() else ""
     record("config.txt has a [pi5] section", "[pi5]" in config)
@@ -146,11 +148,43 @@ def check_rootfs(root: Path) -> dict:
     record("vendor first-boot helpers disabled",
            not (root / "etc/systemd/system/multi-user.target.wants/userconfig.service").exists()
            and not (root / "etc/systemd/system/multi-user.target.wants/sshswitch.service").exists())
+
+    def masked(unit: str) -> bool:
+        path = root / "etc/systemd/system" / unit
+        return path.is_symlink() and os.readlink(path) == "/dev/null"
+
+    cloud_units = [
+        "cloud-init.target", "cloud-init-local.service", "cloud-config.service",
+        "cloud-final.service", "cloud-init-main.service", "cloud-init-network.service",
+        "cloud-init-hotplugd.socket",
+    ]
+    record("cloud-init is disabled",
+           (root / "etc/cloud/cloud-init.disabled").is_file()
+           and all(masked(unit) for unit in cloud_units))
+    record("SSH host-key regeneration disabled",
+           masked("regenerate_ssh_host_keys.service")
+           and not (root / "etc/systemd/system/sysinit.target.wants/regenerate_ssh_host_keys.service").exists())
     record("no pi account", "pi:" not in (root / "etc/passwd").read_text(errors="replace"))
 
     passwd = (root / "etc/passwd").read_text(errors="replace") if (root / "etc/passwd").is_file() else ""
     piv = re.search(r"^pivista:x:(\d+):(\d+):", passwd, re.M)
     record("pivista account uid/gid 1000", bool(piv and piv.group(1) == "1000" and piv.group(2) == "1000"))
+
+    # Browser profiles and launcher settings live below these directories. If
+    # firstboot leaves an intermediate directory owned by root, the user can
+    # read it but cannot create a profile after "Clear browser data".
+    owned = []
+    for rel in ("home/pivista/.config", "home/pivista/.config/pivista",
+                "home/pivista/.local/share/pivista"):
+        path = root / rel
+        if path.is_dir():
+            info = path.stat()
+            owned.append(info.st_uid == 1000 and info.st_gid == 1000
+                         and (info.st_mode & 0o200) != 0
+                         and (info.st_mode & 0o007) == 0)
+        else:
+            owned.append(False)
+    record("session config dirs owned by pivista", all(owned), f"{sum(owned)}/3")
 
     shadow = (root / "etc/shadow").read_text(errors="replace") if (root / "etc/shadow").is_file() else ""
     pw = re.search(r"^pivista:([^:]*):", shadow, re.M)
@@ -165,6 +199,20 @@ def check_rootfs(root: Path) -> dict:
         root / "etc/systemd/system/multi-user.target.wants/pivista-firstboot.service",
     ]
     record("PiVista units enabled", all(p.exists() or p.is_symlink() for p in enabled))
+
+    resize = root / "etc/systemd/system/sysinit.target.wants/rpi-resize.service"
+    record("root filesystem resize enabled",
+           resize.is_symlink()
+           and (root / "usr/lib/systemd/system/rpi-resize.service").is_file())
+
+    wifi_firmware = root / "usr/lib/firmware/brcm/brcmfmac43455-sdio.raspberrypi,5-model-b.bin"
+    record("Pi 5 Wi-Fi firmware and NetworkManager present",
+           (wifi_firmware.is_file() or wifi_firmware.is_symlink())
+           and (root / "usr/bin/nmcli").is_file()
+           and (root / "etc/systemd/system/multi-user.target.wants/NetworkManager.service").is_symlink())
+    bluetooth = root / "etc/systemd/system/bluetooth.target.wants/bluetooth.service"
+    record("Bluetooth service enabled",
+           bluetooth.is_symlink() and (root / "usr/bin/bluetoothctl").is_file())
 
     info = {}
     info_path = root / "etc/pivista/build-info.json"

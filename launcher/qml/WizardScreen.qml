@@ -6,7 +6,9 @@ Item {
     z: 40
     visible: !AppSettings.setupComplete && !uiDevMode
 
-    property int step: 0
+    // Development-only override used by the offscreen layout test.
+    property int step: (typeof uiWizardStep !== "undefined"
+                        && uiWizardStep > 0 && uiWizardStep < 8) ? uiWizardStep : 0
     property string language: "English (United Kingdom)"
     property string locale: "en_GB.UTF-8"
     property string timezone: "Europe/Warsaw"
@@ -16,8 +18,18 @@ Item {
     property var audio: ({})
     property var pending: ({})
     property string wifiSsid: ""
+    property string message: ""
+    property bool messageIsError: false
+    property string setupWarning: ""
+    property bool finishing: false
 
     signal completed()
+
+    function notify(text, isError) {
+        message = text
+        messageIsError = isError === true
+        messageTimer.restart()
+    }
 
     readonly property var timezones: [
         "Europe/Warsaw", "Europe/London", "Europe/Berlin", "Europe/Paris",
@@ -37,7 +49,7 @@ Item {
         api("network.scan", { rescan: true }, function (data) {
             wifi = data.networks || []
             if (wifi.length > 0) wifiList.focusFirst()
-        }, 60000, function (message) { status.text = message })
+        }, 60000, function (message) { wizard.notify(message, true) })
     }
 
     function connectWifi(ssid, secure) {
@@ -54,10 +66,11 @@ Item {
         api("network.connect", { ssid: wifiSsid, password: password }, function () {
             wifiDialog.close()
             status.text = "Connected to " + wifiSsid
+            wizard.notify("Connected to " + wifiSsid, false)
             refreshNetwork()
         }, 90000, function (message) {
             if (wifiDialog.visible) wifiDialog.fail(message)
-            else status.text = message
+            else wizard.notify(message, true)
         })
     }
 
@@ -65,12 +78,16 @@ Item {
     function loadAudio() { api("audio.status", {}, function (data) { audio = data }) }
 
     function focusStep() {
-        if (step === 0) navActions.focusAt(0)
-        else if (step === 1) languageList.focusFirst()
-        else if (step === 2) networkActions.focusFirst()
-        else if (step === 3) displayList.focusFirst()
-        else if (step === 4) audioList.focusFirst()
-        else navActions.focusAt(0)
+        let focused = false
+        if (step === 0) focused = navActions.focusAt(0)
+        else if (step === 1) focused = languageList.focusFirst()
+        else if (step === 2) focused = networkActions.focusFirst()
+        else if (step === 3) focused = displayList.focusFirst()
+        else if (step === 4) focused = audioList.focusFirst()
+        // A display/audio probe can legitimately return no entries (no HDMI,
+        // no sink yet). Never leave the remote with nowhere to focus.
+        if (!focused)
+            navActions.focusAt(0)
     }
 
     function next() {
@@ -89,16 +106,47 @@ Item {
     }
 
     function finish() {
+        if (finishing)
+            return
+        finishing = true
+        setupWarning = ""
         AppSettings.locale = locale
         AppSettings.timezone = timezone
         AppSettings.privacyAccepted = true
-        AppSettings.setupComplete = true
-        api("system.set_timezone", { timezone: timezone }, function () {}, 20000)
-        api("system.set_locale", { locale: locale }, function () {}, 20000)
-        wizard.completed()
+        wizard.notify("Applying time zone and locale…", false)
+
+        let remaining = 2
+        function complete() {
+            if (--remaining > 0)
+                return
+            finishing = false
+            AppSettings.setupComplete = true
+            wizard.completed()
+        }
+        function failed(label) {
+            return function (message) {
+                setupWarning = label + ": " + message
+                complete()
+            }
+        }
+        // Setup must not dead-end when the control service is unavailable.
+        // The wizard still completes; Main shows any warning after it closes.
+        api("system.set_timezone", { timezone: timezone }, complete, 15000,
+            failed("Time zone not applied"))
+        api("system.set_locale", { locale: locale }, complete, 15000,
+            failed("Locale not applied"))
     }
 
-    onVisibleChanged: if (visible) Qt.callLater(focusStep)
+    onVisibleChanged: if (visible) {
+        message = ""
+        if (AppSettings.timezone.length > 0)
+            timezone = AppSettings.timezone
+        if (AppSettings.locale === "pl_PL.UTF-8") {
+            language = "Polski (Poland)"
+            locale = "pl_PL.UTF-8"
+        }
+        Qt.callLater(focusStep)
+    }
 
     onStepChanged: {
         if (step === 2) refreshNetwork()
@@ -127,9 +175,15 @@ Item {
             if (handler) {
                 delete wizard.pending[id]
                 if (handler.err) handler.err(message)
-                else status.text = message
+                else wizard.notify(message, true)
             }
         }
+    }
+
+    Timer {
+        id: messageTimer
+        interval: 9000
+        onTriggered: wizard.message = ""
     }
 
     Rectangle {
@@ -149,7 +203,9 @@ Item {
         Rectangle {
             anchors.centerIn: parent
             width: Theme.s(1080)
-            height: Theme.s(720)
+            // Tall enough for the language/time-zone step at both 1080p and
+            // 720p; the previous 720-unit card clipped the Back button.
+            height: Theme.s(840)
             radius: Theme.s(28)
             color: Theme.bgRaised
             border.width: Theme.s(1)
@@ -298,8 +354,18 @@ Item {
                         }
                         onNavigateDown: if (wifiList.actions.length > 0) wifiList.focusFirst(); else navActions.focusAt(0)
                     }
+                    Text {
+                        visible: wizard.wifi.length === 0
+                        width: parent.width
+                        text: "No Wi-Fi networks listed yet. Select Scan, or connect Ethernet and continue."
+                        color: Theme.textFaint
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.s(14)
+                        wrapMode: Text.WordWrap
+                    }
                     ActionList {
                         id: wifiList
+                        visible: wizard.wifi.length > 0
                         width: parent.width
                         height: Math.min(Theme.s(200), implicitHeight)
                         actions: wizard.wifi.map(function (network) {
@@ -330,11 +396,18 @@ Item {
                         font.pixelSize: Theme.s(14)
                         wrapMode: Text.WordWrap
                     }
-                    Text { text: "Display mode"; color: Theme.textDim; font.family: Theme.fontFamily; font.pixelSize: Theme.s(14); font.weight: Font.DemiBold }
+                    Text {
+                        text: displayList.actions.length > 0 ? "Display mode" : "Display mode · no modes detected"
+                        color: Theme.textDim
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.s(14)
+                        font.weight: Font.DemiBold
+                    }
                     ActionList {
                         id: displayList
+                        visible: actions.length > 0
                         width: parent.width
-                        height: actions.length === 0 ? Theme.s(56) : Math.min(Theme.s(170), implicitHeight)
+                        height: Math.min(Theme.s(170), implicitHeight)
                         actions: {
                             if (!wizard.display.outputs) return []
                             const connected = wizard.display.outputs.filter(function (output) { return output.status === "connected" })
@@ -417,7 +490,7 @@ Item {
                     Text { text: "Remote and keyboard"; color: Theme.text; font.family: Theme.fontFamily; font.pixelSize: Theme.s(28); font.weight: Font.DemiBold }
                     Text {
                         width: parent.width
-                        text: "PiVista TV accepts USB and Bluetooth keyboards, media remotes that send standard key codes, and game controllers. Use the arrow keys or D-pad to move, Enter or OK to select, Back/Escape to return, and Home to leave any app."
+                        text: "PiVista TV accepts USB keyboards, USB/IR media remotes that send standard key codes, and game controllers. Use the arrow keys or D-pad to move, Enter or OK to select, Back/Escape to return, and Home to leave any app. Bluetooth hardware is present, but this release has no Bluetooth pairing screen; use USB for setup."
                         color: Theme.textDim
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.s(15)
@@ -425,7 +498,7 @@ Item {
                     }
                     Text {
                         width: parent.width
-                        text: "HDMI-CEC is not enabled by default because it is unverified on Raspberry Pi 5. If your television remote does nothing, use a USB or Bluetooth remote. Unusual buttons can be mapped in /etc/pivista/input.map from a text console."
+                        text: "HDMI-CEC is not enabled by default because it is unverified on Raspberry Pi 5. If your television remote does nothing, use a USB keyboard or USB/IR remote. Unusual buttons can be mapped in /etc/pivista/input.map from a text console."
                         color: Theme.warn
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.s(14)
@@ -495,6 +568,33 @@ Item {
                     font.pixelSize: Theme.s(12)
                 }
             }
+        }
+    }
+
+    Rectangle {
+        id: messageBanner
+        visible: wizard.message.length > 0
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: Theme.s(24)
+        width: Math.min(parent.width - Theme.s(48), messageText.implicitWidth + Theme.s(48))
+        height: Theme.s(46)
+        radius: Theme.s(12)
+        color: wizard.messageIsError ? "#3b1116" : Theme.surfaceHigh
+        border.width: Theme.s(1)
+        border.color: wizard.messageIsError ? Theme.danger : Theme.accentDim
+        z: 60
+
+        Text {
+            id: messageText
+            anchors.centerIn: parent
+            width: parent.width - Theme.s(30)
+            text: wizard.message
+            color: wizard.messageIsError ? Theme.danger : Theme.text
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.s(14)
+            elide: Text.ElideRight
+            horizontalAlignment: Text.AlignHCenter
         }
     }
 

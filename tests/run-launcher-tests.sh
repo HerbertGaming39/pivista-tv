@@ -17,3 +17,4 @@ cmake -S "$PROJECT/launcher" -B "$BUILD" \
       -DCMAKE_BUILD_TYPE=Release -DPIVISTA_BUILD_TESTS=ON >/dev/null
 cmake --build "$BUILD" --parallel "$(nproc)" >/dev/null
 ctest --test-dir "$BUILD" --output-on-failure
+"$PROJECT/tests/ui/render_screens.sh" "$BUILD/pivista-launcher"

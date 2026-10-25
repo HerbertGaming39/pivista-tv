@@ -13,6 +13,20 @@ stage_25_launcher() {
     return 0
   fi
 
+  # Stage 40 purges the build toolchain after sealing. A later incremental
+  # source rebuild therefore has to restore it before cmake is available.
+  if ! chroot_run command -v cmake >/dev/null 2>&1; then
+    step "Restoring launcher build dependencies"
+    local build_pkgs
+    build_pkgs=$(list_packages build)
+    chroot_run apt-get update -qq 2>&1 | tee -a "$BUILD_LOG" | tail -3
+    # shellcheck disable=SC2086
+    chroot_run apt-get install -y --no-install-recommends \
+        -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold \
+        $build_pkgs 2>&1 | tee -a "$BUILD_LOG" | tail -5
+    ok "launcher build dependencies restored"
+  fi
+
   step "Copying launcher sources into the image chroot"
   rm -rf "$ROOT_MNT/usr/src/pivista-launcher"
   mkdir -p "$ROOT_MNT/usr/src/pivista-launcher"

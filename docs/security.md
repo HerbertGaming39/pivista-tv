@@ -37,16 +37,25 @@ browser/session data.
 
 ## Accounts and passwords
 
-- `pivista` is created with UID/GID 1000, a locked password (`!`) and a normal
-  shell for diagnostics on tty2/console.
-- The stock `pi` account is removed.
-- Root login is not enabled; `openssh-server` is purged from the image and SSH units are masked.
+- `pivista` is created with UID/GID 1000 and a locked password (`!`). Its shell
+  field is `/bin/bash`, but a locked password means there is **no interactive
+  login** on tty2, the serial console or any other terminal. The shell field is
+  only used by the systemd session and by offline recovery.
+- Root is locked (`*`) and has no login.
+- The stock `pi` account is removed. **cloud-init is disabled** and its seed
+  files are removed; otherwise the Raspberry Pi OS cloud-init default would
+  recreate `pi` with passwordless sudo on first boot, after the image build had
+  removed it. The cloud-init units are masked and `/etc/cloud/cloud-init.disabled`
+  is present. This is checked by image validation.
+- `regenerate_ssh_host_keys.service` is masked so a first boot cannot recreate
+  `/etc/ssh` host keys. `openssh-server` is purged and SSH units are masked.
 - The WiFi password is handed to NetworkManager, which stores it in
   `/etc/NetworkManager/system-connections/*` with mode 0600 (root only). It is
   passed to `nmcli` as an argv element for the duration of the connection, not
   written by PiVista to disk. This is a known local-process observation window;
   the device is single-user and has no remote login.
-- No default password is baked into the image.
+- No default password is baked into the image. Do not expect a login prompt to
+  be usable; recovery is an offline operation (see `recovery.md`).
 
 ## Data at rest
 
@@ -55,7 +64,7 @@ browser/session data.
 | Launcher settings | `~/.config/PiVista/Launcher.conf` | user |
 | Browser profiles (cookies, sessions) | `~/.config/pivista/browser/` | user `0700` |
 | User web shortcuts | `~/.config/pivista/webapps.json` | user |
-| Diagnostics | `/var/lib/pivista/diagnostics/` | `0644` (local only) |
+| Diagnostics | `/var/lib/pivista/diagnostics/` | directory `0755`; JSON file `0644` (local only; contains device serial and network addresses) |
 | Wi-Fi PSK | NetworkManager keyfile | `0600 root` |
 | Build provenance | `/etc/pivista/` | `0644` |
 
@@ -90,10 +99,22 @@ browser/session data.
 ## Hardening defaults in the image
 
 - No SSH server; no remote shell. `openssh-server` is purged and its units masked.
-- Vendor `userconfig.service` and `sshswitch.service` are masked; PiVista's own wizard owns first boot.
+- Vendor `userconfig.service`, `sshswitch.service` and the whole cloud-init
+  stack are masked; PiVista's own wizard owns first boot. Cloud-init seed files
+  are removed from the boot partition.
+- `regenerate_ssh_host_keys.service` is masked; `/etc/ssh` stays absent.
 - No inbound listening services from PiVista.
 - `kernel.dmesg_restrict=1`.
 - systemd service sandboxing for `pivistad`: private `/tmp`, read-only home,
   restricted address families, capability bounding set, `NoNewPrivileges`.
 - Build-time scan for private keys and cloud tokens; image validation repeats a
-  credential scan.
+  credential scan and checks the cloud-init/SSH masks.
+
+## Local recovery boundary
+
+The locked accounts are a deliberate trade-off: a television does not need an
+interactive shell, and a passwordless one would be a local privilege path. An
+owner with physical access can still recover by mounting the card on another
+computer or by appending `init=/bin/bash` to `cmdline.txt` on the FAT32 boot
+partition, then reverting that change. That is a physical-access boundary; full
+disk encryption is not implemented.

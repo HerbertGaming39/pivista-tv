@@ -57,11 +57,15 @@ A one-client compositor such as `cage` is simpler, but it cannot implement a
 global **Home** key: once Chromium is focused, the remote's Home button goes to
 Chromium, which ignores it, and the user is stuck in the browser. sway can bind
 Home at the compositor level, close the streaming window and refocus the
-launcher. That behaviour is a core television requirement, so the small extra
-configuration is justified.
+launcher. `/usr/lib/pivista/home.sh` also sends a byte to the launcher's
+user-only `pivista-home.sock`, so the QML screen resets and a native app is
+closed as well. That behaviour is a core television requirement, so the small
+extra configuration is justified.
 
 No desktop environment, panel, file manager or terminal is installed for normal
-use. A text console remains available on tty2 for recovery.
+use. A text console exists for boot messages, but the accounts are locked; there
+is no interactive login. Recovery is by mounting the card offline or the
+physical `init=/bin/bash` procedure in `recovery.md`.
 
 ### Privilege boundary
 

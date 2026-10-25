@@ -1,12 +1,16 @@
 # Build outputs
 build/logs/
 build/launcher-tests/
+build/ui/
+build/ui-tests/
 launcher/build/
 releases/*.img
 releases/*.img.xz
 # Small release metadata is a deliverable; the image itself is not.
 !releases/*.sha256
 !releases/*.manifest.json
+releases/baseline-*/
+releases/source-*.tar.gz
 
 # Python
 __pycache__/

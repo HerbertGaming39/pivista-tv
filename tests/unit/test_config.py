@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import os
 import pathlib
 import re
+import subprocess
+import tempfile
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -61,6 +64,41 @@ class ProductConfigTests(unittest.TestCase):
         self.assertNotIn("optional-android", build_sh)
         common = (ROOT / "build/lib/common.sh").read_text(encoding="utf-8")
         self.assertNotIn("optional-android", common)
+
+    def test_base_metadata_is_exported_for_artifact_manifest(self) -> None:
+        """The manifest generator is a child process and needs BASE_* in env.
+
+        Regression: load_config() sourced manifest/base-image.lock but did not
+        export it, so every release manifest had an empty "base" object.
+        """
+        keys = (
+            "BASE_IMAGE_NAME", "BASE_IMAGE_URL", "BASE_IMAGE_SHA256",
+            "BASE_IMAGE_RELEASE", "BASE_IMAGE_DEBIAN", "BASE_IMAGE_KERNEL",
+        )
+        with tempfile.TemporaryDirectory() as work:
+            env = dict(os.environ)
+            env["PIVISTA_WORK_DIR"] = work
+            env["PIVISTA_BUILD_ID"] = "test-manifest-base"
+            script = (
+                'set -euo pipefail\n'
+                f'PROJECT_DIR={str(ROOT)!r}\n'
+                'source "$PROJECT_DIR/build/lib/common.sh"\n'
+                'load_config\n'
+                + "\n".join(f'printf "%s\\n" "${key}"' for key in keys)
+                + "\n"
+            )
+            completed = subprocess.run(
+                ["bash", "-c", script], env=env, capture_output=True, text=True,
+                timeout=20,
+            )
+            log = ROOT / "build/logs/build-test-manifest-base.log"
+            log.unlink(missing_ok=True)
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            values = completed.stdout.splitlines()
+            self.assertEqual(len(values), len(keys), completed.stdout)
+            for key, value in zip(keys, values):
+                self.assertTrue(value, f"{key} was not exported")
+                self.assertEqual(value, self.base[key], key)
 
     def test_no_placeholder_credentials_in_tree(self) -> None:
         patterns = re.compile(

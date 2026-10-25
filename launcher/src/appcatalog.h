@@ -77,6 +77,7 @@ private:
     void savePreferences() const;
     QStringList preferenceList(const QString &key) const;
     void setPreferenceList(const QString &key, const QStringList &values);
+    bool listed(const Entry &entry) const;
     QVariantMap toMap(const Entry &entry) const;
     QVariantList listFor(const QStringList &ids) const;
     const Entry *find(const QString &id) const;

@@ -6,13 +6,17 @@ import QtQuick.Shapes
 Window {
     id: window
     visible: true
-    width: 1920
-    height: 1080
-    minimumWidth: 960
-    minimumHeight: 540
+    width: initialWidth
+    height: initialHeight
+    minimumWidth: Math.round(initialWidth * 0.5)
+    minimumHeight: Math.round(initialHeight * 0.5)
     visibility: windowedMode ? Window.Windowed : Window.FullScreen
     color: Theme.bg
     title: "PiVista TV"
+
+    // The UI is authored at 1920x1080. Scale it to the actual surface so a
+    // 720p television, a 4K panel and an offscreen test all keep their layout.
+    readonly property real designScale: Math.max(0.5, Math.min(width / 1920, height / 1080))
 
     property string screen: initialScreen.length > 0 ? initialScreen : "home"
     property bool quickOpen: false
@@ -28,7 +32,7 @@ Window {
 
     readonly property var navItems: ["Home", "Apps", "Search", "Settings", "Quick"]
 
-    Binding { target: Theme; property: "scale"; value: AppSettings.uiScale }
+    Binding { target: Theme; property: "scale"; value: AppSettings.uiScale * window.designScale }
     Binding { target: Theme; property: "animations"; value: AppSettings.animations }
 
     function activeIndex() {
@@ -144,6 +148,23 @@ Window {
         function onExternalAppChanged() {
             if (!catalog.externalAppActive && !window.wizardVisible && !window.screensaverActive)
                 Qt.callLater(window.focusContent)
+        }
+    }
+
+    // The sway Home binding runs as the session user and wakes this socket.
+    // Handling it here (rather than only in the compositor) resets the QML
+    // screen and closes a native app even when Chromium never had the key.
+    Connections {
+        target: homeRelay
+        function onHomeRequested() {
+            if (window.wizardVisible)
+                return
+            window.screensaverActive = false
+            window.lastInput = Date.now()
+            if (window.quickOpen)
+                quickPanel.close()
+            catalog.closeExternalApp()
+            window.goHome()
         }
     }
 
@@ -462,7 +483,9 @@ Window {
             id: wizard
             onCompleted: {
                 window.screen = "home"
-                window.showToast("Setup complete")
+                window.showToast(wizard.setupWarning.length > 0
+                                 ? "Setup complete · " + wizard.setupWarning
+                                 : "Setup complete")
                 Qt.callLater(window.focusContent)
             }
         }

@@ -72,6 +72,21 @@ Item {
         api("network.connectivity", {}, function (data) { netTest = data }, 20000)
     }
 
+    function testConnectivity() {
+        flash("Testing internet connection…", false)
+        api("network.connectivity", {}, function (data) {
+            netTest = data
+            if (data.online)
+                flash("Internet reachable · DNS OK", false)
+            else if (data.dns)
+                flash("DNS works, but NetworkManager reports " + (data.nm || "unknown"), true)
+            else
+                flash("No internet access. Check Wi-Fi/Ethernet and DNS.", true)
+        }, 20000, function (message) {
+            flash(message, true)
+        })
+    }
+
     function scanWifi() {
         flash("Scanning for Wi-Fi networks…", false)
         api("network.scan", { rescan: true }, function (data) {
@@ -148,14 +163,19 @@ Item {
     }
 
     function focusPage() {
-        if (page === "network") netActions.focusFirst()
-        else if (page === "display") displayModes.focusFirst()
-        else if (page === "audio") audioActions.focusFirst()
-        else if (page === "applications") appActions.focusFirst()
-        else if (page === "system") systemActions.focusFirst()
-        else if (page === "updates") updateActions.focusFirst()
-        else if (page === "privacy") privacyActions.focusFirst()
-        else if (page === "about") aboutActions.focusFirst()
+        let focused = false
+        if (page === "network") focused = netActions.focusFirst()
+        else if (page === "display") focused = displayModes.focusFirst()
+        else if (page === "audio") focused = audioActions.focusFirst()
+        else if (page === "applications") focused = appActions.focusFirst()
+        else if (page === "system") focused = systemActions.focusFirst()
+        else if (page === "updates") focused = updateActions.focusFirst()
+        else if (page === "privacy") focused = privacyActions.focusFirst()
+        else if (page === "about") focused = aboutActions.focusFirst()
+        // Some pages have no actionable rows until hardware reports a mode or
+        // sink. Keep Back/Escape usable instead of leaving focus nowhere.
+        if (!focused)
+            settings.forceActiveFocus()
     }
 
     function focusContent() {
@@ -310,15 +330,34 @@ Item {
                 width: parent.width
                 actions: [
                     { label: "Scan for Wi-Fi networks", detail: "find nearby networks" },
-                    { label: settings.net.wifi_connected ? "Disconnect Wi-Fi" : "Wi-Fi not connected", detail: settings.net.wifi_connected ? settings.net.connection : "" },
+                    { label: settings.net.wifi_connected ? "Disconnect Wi-Fi" : "Wi-Fi not connected", detail: settings.net.wifi_connected ? settings.net.connection : "connect first" },
                     { label: "Test internet connection", detail: "DNS and NetworkManager" },
                     { label: "Refresh status", detail: "" }
                 ]
                 onTriggered: function (index) {
-                    if (index === 0) settings.scanWifi()
-                    else if (index === 1) settings.api("network.disconnect", { device: settings.net.interface }, function () { settings.flash("Disconnected", false); settings.loadNetwork() }, 30000, function (m) { settings.flash(m, true) })
-                    else if (index === 2) { settings.loadNetwork(); settings.flash("Connectivity test requested", false) }
-                    else settings.loadNetwork()
+                    if (index === 0) {
+                        settings.scanWifi()
+                    } else if (index === 1) {
+                        if (!settings.net.wifi_connected) {
+                            settings.flash("Wi-Fi is not connected.", true)
+                            return
+                        }
+                        const wifi = (settings.net.devices || []).find(function (device) {
+                            return device.type === "wifi" && device.state === "connected"
+                        })
+                        if (!wifi) {
+                            settings.flash("No connected Wi-Fi device.", true)
+                            return
+                        }
+                        settings.api("network.disconnect", { device: wifi.device }, function () {
+                            settings.flash("Wi-Fi disconnected", false)
+                            settings.loadNetwork()
+                        }, 30000, function (m) { settings.flash(m, true) })
+                    } else if (index === 2) {
+                        settings.testConnectivity()
+                    } else {
+                        settings.loadNetwork()
+                    }
                 }
                 onNavigateDown: if (wifiActions.actions.length > 0) wifiActions.focusFirst()
             }

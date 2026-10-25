@@ -76,6 +76,19 @@ Item {
         Keys.onReturnPressed: keyboard.press(keyboard.keys[grid.currentIndex])
         Keys.onEnterPressed: keyboard.press(keyboard.keys[grid.currentIndex])
         Keys.onEscapePressed: keyboard.cancelled()
+        Keys.onPressed: function (event) {
+            // A USB/Bluetooth keyboard should type directly into the dialog,
+            // not force the user to navigate the on-screen keys one by one.
+            if (event.key === Qt.Key_Backspace) {
+                keyboard.text = keyboard.text.slice(0, -1)
+                event.accepted = true
+            } else if (event.text.length === 1
+                       && event.text.charCodeAt(0) >= 0x20
+                       && !(event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier))) {
+                keyboard.text += event.text
+                event.accepted = true
+            }
+        }
 
         delegate: Rectangle {
             width: grid.cellWidth - Theme.s(8)

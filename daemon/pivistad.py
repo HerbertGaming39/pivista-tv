@@ -871,21 +871,31 @@ class Server:
                 pass
 
     def _process(self, line: bytes) -> dict:
+        request_id: int | str | None = None
         try:
             request = json.loads(line.decode("utf-8", errors="strict"))
         except (UnicodeDecodeError, json.JSONDecodeError):
-            return {"ok": False, "error": {"code": "bad_json", "message": "malformed request"}}
+            return {"id": request_id, "ok": False,
+                    "error": {"code": "bad_json", "message": "malformed request"}}
         if not isinstance(request, dict):
-            return {"ok": False, "error": {"code": "bad_request", "message": "request must be an object"}}
+            return {"id": request_id, "ok": False,
+                    "error": {"code": "bad_request", "message": "request must be an object"}}
+        # Echo the request id. The launcher correlates responses with the action
+        # that produced them; omitting the id silently drops every callback.
+        candidate = request.get("id")
+        if isinstance(candidate, (int, str)) and not isinstance(candidate, bool):
+            request_id = candidate
         action = request.get("action")
         if not isinstance(action, str):
-            return {"ok": False, "error": {"code": "bad_request", "message": "action is required"}}
+            return {"id": request_id, "ok": False,
+                    "error": {"code": "bad_request", "message": "action is required"}}
         params = request.get("params", {})
         try:
             data = self.service.dispatch(action, params)
-            return {"ok": True, "data": data}
+            return {"id": request_id, "ok": True, "data": data}
         except ActionError as exc:
-            return {"ok": False, "error": {"code": exc.code, "message": exc.message}}
+            return {"id": request_id, "ok": False,
+                    "error": {"code": exc.code, "message": exc.message}}
 
     def serve_forever(self) -> None:
         self._sock = self._prepare_socket()

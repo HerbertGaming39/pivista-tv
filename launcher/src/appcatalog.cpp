@@ -272,12 +272,19 @@ const AppCatalog::Entry *AppCatalog::find(const QString &id) const
     return nullptr;
 }
 
+bool AppCatalog::listed(const Entry &entry) const
+{
+    // Terminal-only helpers (htop, vim) and entries whose program disappeared
+    // cannot be used from the television and must not become dead tiles.
+    return entry.valid && !m_hiddenIds.contains(entry.id);
+}
+
 QVariantList AppCatalog::listFor(const QStringList &ids) const
 {
     QVariantList result;
     for (const QString &id : ids) {
         const Entry *entry = find(id);
-        if (!entry || m_hiddenIds.contains(id))
+        if (!entry || !listed(*entry))
             continue;
         result.append(toMap(*entry));
     }
@@ -288,7 +295,7 @@ QVariantList AppCatalog::apps() const
 {
     QVariantList result;
     for (const Entry &entry : m_entries) {
-        if (m_hiddenIds.contains(entry.id))
+        if (!listed(entry))
             continue;
         result.append(toMap(entry));
     }
@@ -298,8 +305,13 @@ QVariantList AppCatalog::apps() const
 QVariantList AppCatalog::allApps() const
 {
     QVariantList result;
-    for (const Entry &entry : m_entries)
+    for (const Entry &entry : m_entries) {
+        // The settings page needs hidden entries so they can be restored, but
+        // entries that cannot launch have nothing to manage.
+        if (!entry.valid)
+            continue;
         result.append(toMap(entry));
+    }
     return result;
 }
 
@@ -310,6 +322,9 @@ void AppCatalog::clearBrowserData()
     if (directory.exists())
         directory.removeRecursively();
     QDir().mkpath(path);
+    // Browser cookies and streaming sessions must not be group/world readable.
+    QFile::setPermissions(path, QFileDevice::ReadOwner | QFileDevice::WriteOwner
+                                    | QFileDevice::ExeOwner);
 }
 
 QVariantList AppCatalog::favorites() const { return listFor(m_favoriteIds); }
@@ -319,7 +334,7 @@ QVariantList AppCatalog::streaming() const
 {
     QVariantList result;
     for (const Entry &entry : m_entries) {
-        if (entry.kind != QLatin1String("web") || m_hiddenIds.contains(entry.id))
+        if (entry.kind != QLatin1String("web") || !listed(entry))
             continue;
         result.append(toMap(entry));
     }
@@ -330,7 +345,7 @@ QVariantList AppCatalog::nativeApps() const
 {
     QVariantList result;
     for (const Entry &entry : m_entries) {
-        if (entry.kind != QLatin1String("native") || m_hiddenIds.contains(entry.id))
+        if (entry.kind != QLatin1String("native") || !listed(entry))
             continue;
         result.append(toMap(entry));
     }
@@ -347,7 +362,7 @@ QStringList AppCatalog::availableCategories() const
 {
     QStringList categories;
     for (const Entry &entry : m_entries) {
-        if (!entry.category.isEmpty() && !categories.contains(entry.category))
+        if (listed(entry) && !entry.category.isEmpty() && !categories.contains(entry.category))
             categories << entry.category;
     }
     categories.sort();

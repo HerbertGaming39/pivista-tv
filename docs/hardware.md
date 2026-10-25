@@ -1,5 +1,8 @@
 # Raspberry Pi 5 hardware notes and validation protocol
 
+For the first-boot checklist, use [hardware-test.md](hardware-test.md). This
+file records platform facts and the deeper measurement protocol.
+
 ## Platform facts relevant to this product
 
 | Item | Fact | Consequence |
@@ -64,13 +67,17 @@ empty. Do not replace it with estimates.
 1. Ethernet: confirm IP, DNS and a connectivity test.
 2. Wi-Fi: scan, join a WPA2 network using only the remote and on-screen keyboard.
 3. Enter a wrong password; confirm an error is shown and the dialog stays open.
+   There is no console login; use the emergency shell in `recovery.md` if you
+   need to inspect NetworkManager directly.
 4. Disconnect; confirm the UI reports offline and does not hang.
 5. Reboot; confirm reconnection and correct time via NTP.
 
 ### 5. Input
 
 1. Arrow/Enter/Back/Home on a USB keyboard.
-2. A USB IR remote or Bluetooth remote: confirm standard key codes work.
+2. A USB IR remote: confirm standard key codes work. Bluetooth hardware is
+   present and BlueZ runs, but there is no pairing UI in this release; record it
+   as a limitation rather than treating a USB dongle as Bluetooth input.
 3. A game controller: confirm it appears in `evtest`; document unmapped buttons.
 4. Home while Chromium is fullscreen: confirm it closes the web app and returns
    to the launcher (sway binding).

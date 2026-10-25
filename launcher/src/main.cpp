@@ -1,5 +1,6 @@
 #include "appcatalog.h"
 #include "controlclient.h"
+#include "homecontrol.h"
 #include "iconprovider.h"
 
 #include <QDebug>
@@ -61,11 +62,13 @@ int main(int argc, char *argv[])
 
     AppCatalog catalog;
     ControlClient control;
+    HomeRelay homeRelay;
 
     QQmlApplicationEngine engine;
     engine.addImageProvider(QStringLiteral("pivistaicon"), new IconProvider);
     engine.rootContext()->setContextProperty(QStringLiteral("catalog"), &catalog);
     engine.rootContext()->setContextProperty(QStringLiteral("control"), &control);
+    engine.rootContext()->setContextProperty(QStringLiteral("homeRelay"), &homeRelay);
     engine.rootContext()->setContextProperty(QStringLiteral("windowedMode"), windowed);
     engine.rootContext()->setContextProperty(QStringLiteral("qmlDirectory"), qmlDirectory);
     engine.rootContext()->setContextProperty(QStringLiteral("uiDevMode"),
@@ -74,6 +77,20 @@ int main(int argc, char *argv[])
                                              qEnvironmentVariable("PIVISTA_SCREENSHOT"));
     engine.rootContext()->setContextProperty(QStringLiteral("initialScreen"),
                                              qEnvironmentVariable("PIVISTA_UI_SCREEN"));
+    engine.rootContext()->setContextProperty(QStringLiteral("uiWizardStep"),
+                                             qEnvironmentVariableIntValue("PIVISTA_UI_WIZARD_STEP"));
+
+    // Offscreen layout checks can ask for a different viewport. The QML root
+    // scales its 1920x1080 design to whatever size the compositor grants, so
+    // this is also the path a 720p television takes at runtime.
+    int uiWidth = qEnvironmentVariableIntValue("PIVISTA_UI_WIDTH");
+    int uiHeight = qEnvironmentVariableIntValue("PIVISTA_UI_HEIGHT");
+    if (uiWidth <= 0)
+        uiWidth = 1920;
+    if (uiHeight <= 0)
+        uiHeight = 1080;
+    engine.rootContext()->setContextProperty(QStringLiteral("initialWidth"), uiWidth);
+    engine.rootContext()->setContextProperty(QStringLiteral("initialHeight"), uiHeight);
 
     const QString screenshot = qEnvironmentVariable("PIVISTA_SCREENSHOT");
     if (!screenshot.isEmpty()) {

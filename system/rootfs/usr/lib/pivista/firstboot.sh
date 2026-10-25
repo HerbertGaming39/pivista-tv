@@ -42,8 +42,12 @@ print(f"hardware snapshot: {model or 'unknown model'}, kernel {snapshot['kernel'
 PY
 
 # Browser profiles live in the session user's home and must exist before first
-# launch so Chromium never creates them as root.
-install -d -m 0750 -o pivista -g pivista /home/pivista/.config/pivista/browser
+# launch so Chromium never creates them as root. Create the intermediate
+# directory explicitly: `install -d` leaves missing parents owned by root,
+# which would prevent the launcher from recreating the profile after "Clear
+# browser data".
+install -d -m 0750 -o pivista -g pivista /home/pivista/.config/pivista
+install -d -m 0700 -o pivista -g pivista /home/pivista/.config/pivista/browser
 install -d -m 0750 -o pivista -g pivista /home/pivista/.local/share/pivista
 
 touch "$STATE/firstboot.done"

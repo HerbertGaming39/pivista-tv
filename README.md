@@ -43,7 +43,7 @@ Flash → boot → first-time setup → television
 | Storage | microSD (A2 recommended) or USB SSD |
 | Display | HDMI television or monitor, 1080p target |
 | Network | Ethernet or Wi-Fi (2.4/5 GHz) |
-| Input | USB/Bluetooth keyboard, remote or game controller; HDMI-CEC untested |
+| Input | USB keyboard, USB/IR remote or game controller; Bluetooth input needs pairing (no pairing UI yet); HDMI-CEC untested |
 | Power | Official 27 W USB-C supply recommended |
 
 ## Current status
@@ -56,6 +56,10 @@ Implemented and covered by automated tests:
 - First-boot wizard, settings, search, screensaver, quick panel
 - NetworkManager/PipeWire integration code paths
 - Image structure validation and package manifest
+
+Automated tests in this build: **37 host Python tests, 6 launcher/Qt cases, 19
+offscreen screen renders and 46/46 image checks**. The image is structurally
+validated, not booted.
 
 Not verified, and labelled as such in the product:
 
@@ -100,30 +104,81 @@ RELEASE-NOTES.md
 Full details, including resource use and incremental builds, are in
 [docs/build.md](docs/build.md).
 
-## Flash
+## Hardware test release
 
-```bash
-xz -dc pivista-tv-0.1.0-pi5-arm64.img.xz | \
-  sudo dd of=/dev/sdX bs=4M status=progress conv=fsync
+This is the image to test on a physical Raspberry Pi 5. The build host could not
+boot it; the checks below are structural and host-side only.
+
+| Field | Value |
+|---|---|
+| Image | `releases/pivista-tv-0.1.0-pi5-arm64.img.xz` |
+| Size | 1,290,377,464 bytes (1.20 GiB compressed) |
+| SHA-256 | `576f4a056fb405cae2f800bf581ba91099726b9a8a43d93659f78d8f8cc1be82` |
+| Build ID | `20261025T133307Z` |
+| Host tests | 37 host Python tests, 6 launcher/Qt cases, 19 offscreen screen renders, 46/46 image checks (this build) |
+| Hardware test checklist | [docs/hardware-test.md](docs/hardware-test.md) |
+
+Verify the checksum before writing anything:
+
+```powershell
+# Windows PowerShell
+Get-FileHash .\pivista-tv-0.1.0-pi5-arm64.img.xz -Algorithm SHA256
+Get-Content .\pivista-tv-0.1.0-pi5-arm64.img.xz.sha256
 ```
 
-Or use Raspberry Pi Imager / balenaEtcher. Do **not** apply Raspberry Pi Imager
-customisation settings (hostname/user); PiVista TV creates its own account and
-runs its own first-boot setup.
+```bash
+# Linux / WSL, from the releases directory
+sha256sum -c pivista-tv-0.1.0-pi5-arm64.img.xz.sha256
+```
 
-The image keeps Raspberry Pi OS's partition layout: a 512 MB FAT32 boot
-partition and an ext4 root partition that grows to fill the card on first boot.
+### Windows
+
+1. Install [Raspberry Pi Imager](https://www.raspberrypi.com/software/) or
+   [balenaEtcher](https://etcher.balena.io/).
+2. Choose **Use custom** / **Flash from file** and select the `.img.xz` directly;
+   do not decompress it first.
+3. Select the microSD/USB device. Confirm the drive letter twice.
+4. Flash, then eject safely.
+5. Do **not** use Imager's OS customisation (hostname, user, SSH, Wi-Fi).
+   PiVista creates its own account and runs its own first-boot wizard.
+
+### Linux
+
+```bash
+lsblk                       # identify the card; never guess /dev/sdX
+cd pivista-tv/releases
+sha256sum -c pivista-tv-0.1.0-pi5-arm64.img.xz.sha256
+xz -dc pivista-tv-0.1.0-pi5-arm64.img.xz | \
+  sudo dd of=/dev/sdX bs=4M status=progress conv=fsync
+sync
+```
+
+Raspberry Pi Imager and balenaEtcher are equally valid on Linux. The image
+keeps Raspberry Pi OS's partition layout: a 512 MB FAT32 boot partition and an
+ext4 root partition that grows to fill the card on first boot.
 
 ## First boot
 
-1. Insert the card, connect HDMI and power.
-2. The wizard asks for language/time zone, network, display mode and interface
+1. Insert the card, connect HDMI, a USB keyboard or remote, and power. Ethernet
+   is optional; Wi-Fi can be configured in the wizard.
+2. The root filesystem grows on first boot. This is slower than later boots;
+   the exact time has **not been measured on hardware**.
+3. The wizard asks for language/time zone, network, display mode and interface
    scaling, audio output, remote-control notes, and privacy/update preferences.
    Every step can be skipped; the UI works offline.
-3. The home screen appears. Use arrows, Enter, Escape/Back and Home.
+4. The home screen appears. Use arrows, Enter, Escape/Back and Home.
 
 Settings can be reopened at any time from the top bar. The wizard can be run
 again from **Settings → Privacy and security → Run first-time setup**.
+
+### Default login and security
+
+There is **no default password and no usable login**. `root` and `pivista` are
+locked, SSH is not installed, cloud-init is disabled, and no `pi` account is
+created. The HDMI/serial console is for boot messages, not administration.
+Recovery is offline: mount the card on another computer, or append
+`init=/bin/bash` to `cmdline.txt` for a physical emergency shell and then revert
+it. See [docs/recovery.md](docs/recovery.md).
 
 ## Remote control
 
@@ -135,21 +190,24 @@ again from **Settings → Privacy and security → Run first-time setup**.
 | Home | Return to launcher from any app (global, handled by sway) |
 | Volume keys | PipeWire volume (global) |
 | F10 / Menu | Quick settings |
-| Ctrl+Alt+F2 | Text console (recovery) |
+| Ctrl+Alt+F2 | Switch VT (boot console; accounts are locked, no shell) |
 | Ctrl+Alt+F1 | Back to the TV UI |
 
-USB and Bluetooth keyboards/remotes that emit standard key codes work without
+USB keyboards and remotes that emit standard key codes work without
 configuration. Unusual IR remotes can be mapped in `/etc/pivista/input.map`.
-HDMI-CEC is **not verified** on Pi 5; do not assume the TV remote will work
-without a USB/Bluetooth receiver.
+The image contains BlueZ and the Bluetooth service is enabled, but this release
+has **no Bluetooth pairing screen**; a Bluetooth-only remote cannot be paired
+from the TV yet. Use USB for the first boot, or pair a device from a debug
+context before connecting it. HDMI-CEC is **not verified** on Pi 5; do not
+assume the TV remote will work without a USB receiver.
 
 ## Streaming, honestly
 
 All streaming entries are shortcuts to the services' own websites, opened in a
 dedicated Chromium profile. Chromium on 64-bit Raspberry Pi OS can load the
 `libwidevinecdm0` Widevine CDM at **L3 (software)**. Netflix/Disney+ may play,
-at resolutions the provider chooses; **720p is the realistic expectation and
-1080p is not verified**. The Pi 5 has a hardware HEVC decoder but **no H.264
+at resolutions the provider chooses; **no resolution is guaranteed or verified**,
+and 1080p is not claimed. The Pi 5 has a hardware HEVC decoder but **no H.264
 hardware decoder**, and stock Chromium's use of the Pi 5 HEVC path is not
 established.
 
@@ -169,6 +227,22 @@ Updates use Debian packages from the sources baked into the image. There is no
 A/B partition scheme and **no automatic rollback**. A failed update is recovered
 by reflashing a known-good image. The procedure is in
 [docs/recovery.md](docs/recovery.md).
+
+## Troubleshooting
+
+| Symptom | First thing to try |
+|---|---|
+| No picture | Confirm the TV input, try another HDMI port/cable, add `hdmi_force_hotplug=1` to `config.txt` on the boot partition |
+| Black screen after the boot logo | The launcher shows a `swaynag` banner after three failures; read the journal offline (`journalctl -D /mnt/var/log/journal -b`) |
+| Wizard does not reappear after a reset | Remove `~/.config/PiVista/Launcher.conf` while the card is mounted; see [docs/recovery.md](docs/recovery.md) |
+| Wi-Fi will not join | Check the password dialog error; try Ethernet; hidden networks need a NetworkManager keyfile |
+| No audio | Settings → Audio → choose the HDMI sink → Play test sound |
+| Wrong time zone/locale | Settings → Network/Display; the wizard can be re-run from Privacy and security |
+| Update looks stuck | Do not power off; if it fails, reflash; there is no rollback |
+
+Before reporting a problem, use **Settings → System → Export diagnostics**. It
+writes a local JSON file (device serial and network addresses included) and
+uploads nothing.
 
 ## Repository layout
 

@@ -4,11 +4,12 @@ Testing has two layers that can run on the build host, and one layer that cannot
 
 ## What runs automatically
 
-### Daemon unit tests (`tests/unit/test_pivistad.py`)
+### Host Python tests (`tests/unit/`)
 
-Pure Python, no root, no network, no Raspberry Pi. Covers:
+Pure Python, no network, no Raspberry Pi. Covers the daemon and product config;
 
-- action allowlist (unknown action rejected), protocol parsing, parameter types;
+- action allowlist (unknown action rejected), protocol parsing, request-id echo,
+  parameter types;
 - nmcli terse-output parsing, escaped colons, SSID deduplication by signal;
 - SSID/password validation and argv construction (no shell);
 - audio JSON parsing, default sink, volume bounds, unknown sink rejection;
@@ -16,47 +17,57 @@ Pure Python, no root, no network, no Raspberry Pi. Covers:
 - timezone validation against `timedatectl list-timezones`;
 - update check parsing and confirmation requirement;
 - display mode validation;
-- honest Android reporting.
+- honest Android reporting;
+- the global Home script (`home.sh`) connects to the launcher's user-only socket
+  and sends its `home\n` notification.
 
 ```bash
 python3 -m unittest discover -s tests/unit -v
 ```
 
-### Launcher unit tests (`launcher/tests/test_appcatalog.cpp`)
+### Launcher unit tests (`launcher/tests/`)
 
 Qt Test, runs guiless on the host:
 
 - https-only URL validation (rejects http, javascript, file, embedded credentials);
 - `.desktop` discovery, hidden entries excluded, icon and category mapping;
-- terminal-only and missing-program entries marked invalid with a reason;
-- favourites and hidden state persisted across a catalog reload.
+- terminal-only and missing-program entries rejected rather than shown as dead
+  tiles, with a reason available for diagnostics;
+- favourites and hidden state persisted across a catalog reload;
+- the user-only Home relay accepts a client and emits `homeRequested`, which is
+  what makes the global Home key return to the launcher.
 
 ```bash
-tests/run-launcher-tests.sh        # builds and runs via CTest
+tests/run-launcher-tests.sh        # builds and runs both executables via CTest
 ```
 
-### QML loading and rendering
+### QML loading and rendering (`tests/ui/render_screens.sh`)
 
-The launcher is loaded with `QT_QPA_PLATFORM=offscreen` and rendered to a PNG.
-This catches QML syntax errors, missing types, binding errors and layout
-regressions without a display:
+`tests/run-launcher-tests.sh` renders 19 offscreen screens and fails on QML
+runtime errors or a missing/wrongly-sized PNG: Home, Apps, Search and Settings
+at 1080p and 720p, plus every first-boot wizard page at 720p and the welcome
+page at 1080p. The wizard override is development-only
+(`PIVISTA_UI_WIZARD_STEP`); it is not read from device configuration.
+
+A manual render is still useful when inspecting a design change:
 
 ```bash
 QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software \
 PIVISTA_UI_DEV=1 PIVISTA_UI_SCREEN=home \
 PIVISTA_WEBAPP_CATALOG=applications/web/catalog.json \
 PIVISTA_QML_DIR=launcher/qml \
-PIVISTA_SCREENSHOT=launcher/build/home.png \
-launcher/build/pivista-launcher --windowed
+PIVISTA_SCREENSHOT=build/ui-tests/home.png \
+build/launcher-tests/pivista-launcher --windowed
 ```
 
-`--windowed` keeps the 1920×1080 design size; without it the offscreen platform
+`--windowed` keeps the requested design size; without it the offscreen platform
 falls back to its 800×600 screen. Set `PIVISTA_UI_SCREEN` to `apps`, `search` or
-`settings` to capture another page. The web catalog variable is only needed on
-the host; the image installs the catalog at `/usr/share/pivista/webapps/`.
+`settings`, and `PIVISTA_UI_WIDTH=1280 PIVISTA_UI_HEIGHT=720` for the 720p path.
+The web catalog variable is only needed on the host; the image installs the
+catalog at `/usr/share/pivista/webapps/`.
 
-`PIVISTA_UI_DEV` is a development-only flag that skips the wizard; it is not set
-on a device. Screenshots are for inspection, not assertions.
+The automated check verifies dimensions and QML errors, not visual taste; review
+the PNGs for spacing and contrast.
 
 ### Image validation (`tests/image/validate_image.py`)
 
@@ -67,14 +78,18 @@ Mounts the sealed image read-only and checks:
 - `[pi5]` section in `config.txt`, root `PARTUUID` matches the actual partition;
 - required product files (launcher, daemon, QML, web catalog, units, build info);
 - `pivista` UID/GID 1000, locked password, no `pi` account;
-- units enabled for `graphical.target`/`multi-user.target`;
+- cloud-init masked plus `/etc/cloud/cloud-init.disabled`, seed files removed;
+- SSH host-key regeneration masked, no `/etc/ssh` directory;
+- units enabled for `graphical.target`/`multi-user.target` and the vendor root
+  filesystem resize unit;
+- session config directories owned by UID/GID 1000 with no world access;
 - empty `machine-id`, no SSH server installed, no credentials in product config or
   user data (`/etc/pivista`, `/etc/NetworkManager/system-connections`,
   `/home`, `/root`);
 - aarch64 launcher and kernel (the gzip-compressed `kernel_2712.img` is
   decompressed before `file` inspects it).
 
-The reference build reports **39 passed, 0 failed**.
+The reference build reports **46 passed, 0 failed**.
 
 ```bash
 sudo python3 tests/image/validate_image.py --image /var/tmp/pivista-build/work.img

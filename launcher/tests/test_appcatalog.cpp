@@ -96,6 +96,8 @@ void AppCatalogTest::discoversDesktopEntries()
         names << value.toMap().value("name").toString();
     QVERIFY(names.contains("Test Player"));
     QVERIFY(!names.contains("Hidden Tool"));
+    QVERIFY(!names.contains("Terminal Tool"));
+    QVERIFY(!names.contains("Missing Tool"));
 
     const QVariantMap player = catalog.application("native:player");
     QCOMPARE(player.value("kind").toString(), QStringLiteral("native"));
@@ -114,6 +116,21 @@ void AppCatalogTest::rejectsTerminalAndMissingPrograms()
     const QVariantMap missing = catalog.application("native:missing");
     QVERIFY(!missing.value("valid").toBool());
     QVERIFY(!missing.value("problem").toString().isEmpty());
+
+    // A television must not render dead tiles for entries it cannot launch.
+    const QVariantList listed = catalog.apps();
+    QStringList listedIds;
+    for (const QVariant &value : listed)
+        listedIds << value.toMap().value("id").toString();
+    QVERIFY(!listedIds.contains("native:terminal"));
+    QVERIFY(!listedIds.contains("native:missing"));
+
+    const QVariantList managed = catalog.allApps();
+    QStringList managedIds;
+    for (const QVariant &value : managed)
+        managedIds << value.toMap().value("id").toString();
+    QVERIFY(!managedIds.contains("native:terminal"));
+    QVERIFY(!managedIds.contains("native:missing"));
 }
 
 void AppCatalogTest::favouritesAndHiddenPersist()

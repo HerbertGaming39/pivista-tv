@@ -17,6 +17,8 @@ add_executable(pivista-launcher
     src/controlclient.h
     src/iconprovider.cpp
     src/iconprovider.h
+    src/homecontrol.cpp
+    src/homecontrol.h
 )
 
 target_link_libraries(pivista-launcher PRIVATE
@@ -38,4 +40,13 @@ if(PIVISTA_BUILD_TESTS)
     target_include_directories(pivista-launcher-tests PRIVATE src)
     target_link_libraries(pivista-launcher-tests PRIVATE Qt6::Core Qt6::Test)
     add_test(NAME launcher-unit COMMAND pivista-launcher-tests)
+
+    add_executable(pivista-home-tests
+        tests/test_homecontrol.cpp
+        src/homecontrol.cpp
+        src/homecontrol.h
+    )
+    target_include_directories(pivista-home-tests PRIVATE src)
+    target_link_libraries(pivista-home-tests PRIVATE Qt6::Core Qt6::Network Qt6::Test)
+    add_test(NAME launcher-home COMMAND pivista-home-tests)
 endif()

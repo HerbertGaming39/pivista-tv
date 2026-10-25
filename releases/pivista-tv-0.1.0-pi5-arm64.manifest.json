@@ -1,20 +1,20 @@
 {
   "base": {
-    "debian": "",
-    "kernel": "",
-    "name": "",
-    "release": "",
-    "sha256": "",
-    "url": ""
+    "debian": "trixie",
+    "kernel": "6.18",
+    "name": "2026-10-06-raspios-trixie-arm64-lite",
+    "release": "2026-10-06",
+    "sha256": "483db18a48da399b5b7022ffae9a07bc6d99daab30e593aedac09b69ff422843",
+    "url": "https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2026-10-06/2026-10-06-raspios-trixie-arm64-lite.img.xz"
   },
-  "build_id": "20261025T103527Z",
-  "codename": "Aurora",
-  "created_utc": "2026-10-25T10:40:51Z",
+  "build_id": "20261025T133307Z",
+  "codename": "",
+  "created_utc": "2026-10-25T13:42:15Z",
   "image": {
     "compression": "xz",
     "file": "pivista-tv-0.1.0-pi5-arm64.img.xz",
-    "sha256": "8408c8e8167a974049cd83e7099966403ee79bf933c79cd07f1ab30f3da13280",
-    "size_bytes": 1382768060
+    "sha256": "576f4a056fb405cae2f800bf581ba91099726b9a8a43d93659f78d8f8cc1be82",
+    "size_bytes": 1290377464
   },
   "known_limitations": [
     "No physical Raspberry Pi 5 boot test was performed by the build host.",
@@ -24,12 +24,12 @@
   "launcher": "PiVista TV launcher 0.1.0",
   "product": "PiVista TV",
   "provenance": {
-    "build_log_sha256": "504284fe0138c35da6ef7bf6c94ca16e2a22d5af5c61e116632bfa61fa4a9fa5",
+    "build_log_sha256": "7dc1380993809fb70fca84197468507fd147daae19a86a32b081d26d92c11bf5",
     "builder": "build.sh",
     "host_arch": "x86_64",
     "reproducibility": "pinned inputs and deterministic configuration; not bit-for-bit reproducible",
-    "source_commit": "41cc714575afaff935b735999e9ea95c56a02336",
-    "source_dirty": null
+    "source_commit": "c0b979e4e7875c8f22c9baa81c52e933f65c5056",
+    "source_dirty": true
   },
   "schema": 1,
   "slug": "pivista-tv",
@@ -1089,5 +1089,5 @@
     "model": "Raspberry Pi 5",
     "soc": "BCM2712"
   },
-  "version": "0.1.0"
+  "version": "0.0.0"
 }

@@ -1,7 +1,9 @@
 # Recovery and troubleshooting
 
-PiVista TV has no SSH and no remote shell by design. Recovery is local: a text
-console, the journal, or reflashing.
+PiVista TV has no SSH and no remote shell by design. The `pivista` and `root`
+accounts are locked, so there is **no usable interactive login** on the HDMI
+text console or the serial console. Those consoles are for watching boot
+messages; recovery is offline access to the card or a reflash.
 
 ## The system will not boot
 
@@ -22,11 +24,10 @@ console, the journal, or reflashing.
 
 ## The UI does not appear (black screen, cursor, or console text)
 
-1. Switch to a text console: **Ctrl+Alt+F2**.
-2. Log in is not available (locked accounts). Instead, read the journal by
-   mounting the card on another Linux computer, or use a USB keyboard on tty2
-   only if you have set a password deliberately.
-3. On another Linux machine, mount the root partition and inspect:
+1. **Do not expect Ctrl+Alt+F2 to give a shell.** It may show the boot console,
+   but both accounts are locked. The launcher shows a `swaynag` error banner
+   after three rapid failures, pointing at the journal.
+2. Mount the card on another Linux computer and read the journal:
 
    ```bash
    sudo mount /dev/sdX2 /mnt
@@ -34,7 +35,7 @@ console, the journal, or reflashing.
    cat /mnt/etc/pivista/build-provenance.txt
    ```
 
-4. Common causes:
+3. Common causes:
    - **No HDMI mode**: edit `config.txt` on the boot partition (FAT32) and add
      `hdmi_force_hotplug=1` or a `hdmi_group`/`hdmi_mode` pair, then reboot.
    - **GPU/driver failure**: add `PIVISTA_SOFTWARE_RENDER=1` to
@@ -43,11 +44,27 @@ console, the journal, or reflashing.
    - **sway fails to start**: check `pivista-session.service` in the journal;
      `WLR_RENDERER=pixman` is the fallback.
 
+### Physical emergency shell
+
+If you have the card and a USB keyboard, you can boot a root shell without a
+password. This bypasses the appliance's security; revert it afterwards.
+
+1. Mount the FAT32 boot partition on any computer.
+2. Append ` init=/bin/bash` to the single line in `cmdline.txt`.
+3. Boot the Pi with HDMI and a USB keyboard. You get a root shell before the
+   normal services start.
+4. `mount -o remount,rw /` before editing files.
+5. Remove `init=/bin/bash` from `cmdline.txt` and reboot when finished.
+
+This is an offline/physical-access recovery path, not a supported login.
+
 ## The launcher crashes or restarts in a loop
 
-`pivista-session.service` restarts sway, and `launcher-loop.sh` restarts the
-launcher. After 5 failures in 60 seconds systemd stops the unit. The journal
-contains the Qt error. Typical causes: a missing QML module, a corrupted
+`pivista-session.service` restarts sway if sway itself exits, and
+`launcher-loop.sh` retries the launcher indefinitely. After three rapid failures
+the loop displays a `swaynag` error banner with the journal command; it keeps
+retrying rather than silently giving up. The journal contains the Qt error.
+Typical causes: a missing QML module, a corrupted
 `~/.config/PiVista/Launcher.conf`, or a full disk.
 
 Reset the launcher configuration by mounting the root partition and removing:
@@ -65,18 +82,19 @@ The next boot shows the first-run wizard.
 - A wrong password returns an error in the password dialog; there is no silent
   failure.
 - Ethernet always takes precedence when connected.
-- Hidden networks are not listed; join them from a console with `nmcli` if you
-  have enabled an account, or add a connection file under
-  `/etc/NetworkManager/system-connections/` while the card is mounted.
+- Hidden networks are not listed. There is no console account to run `nmcli`;
+  add a connection file under `/etc/NetworkManager/system-connections/` while
+  the card is mounted, or use the emergency shell described above.
 - `pivistad` logs the *action*, not the password.
 
 ## No audio
 
 1. **Settings → Audio**: choose the HDMI sink, raise volume, play the test tone.
 2. Ensure the TV input is the Pi's HDMI port and the TV volume is up.
-3. From a console: `pactl list sinks short`, `wpctl status`.
+3. From the emergency shell or an offline mount, inspect
+   `pactl list sinks short` / `wpctl status`; there is no normal console login.
 4. Restart the audio stack: `systemctl --user restart pipewire wireplumber`
-   requires a user session; the appliance session already owns it.
+   requires the graphical user session; the appliance session already owns it.
 
 ## Storage full
 

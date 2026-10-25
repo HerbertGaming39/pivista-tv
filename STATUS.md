@@ -1,6 +1,6 @@
 # PiVista TV — status
 
-Updated: 2026-10-25 · Version 0.2.0 "Borealis" · Build `20261025T151554Z`
+Updated: 2026-10-25 · Version 0.2.0 "Borealis" · Build `20261025T153658Z`
 Build host: x86_64 WSL2 (Ubuntu). The image was validated and its launcher was
 rendered from the sealed filesystem under qemu-user. It has **not** been booted
 on a Raspberry Pi 5: the physical Pi previously used for the streaming probe was
@@ -26,7 +26,7 @@ Status vocabulary:
 | Linux host (not Android) | Verified | Raspberry Pi OS 2026-10-06, Debian 13, kernel 6.18 |
 | Pi 5-specific configuration | Implemented | `kernel_2712.img`, `bcm2712-rpi-5-b.dtb`, `[pi5]` config section retained |
 | Reproducible dependency pins | Verified | base image SHA-256 verified at build time; 1046 package versions recorded |
-| Flashable image produced | Verified | `releases/pivista-tv-0.2.0-pi5-arm64.img.xz`, 1.2 GiB, SHA-256 recorded |
+| Flashable image produced | Verified | `releases/pivista-tv-0.2.0-pi5-arm64.img.xz`, 1.23 GB, SHA-256 recorded |
 | Image structure validated | Verified | `tests/image/validate_image.py`: 46/46 checks |
 | Launcher in sealed image | Verified | `pivista-launcher --version` → 0.2.0 in the mounted image under qemu-user |
 | Sealed-image UI render | Verified | Home 720p/1080p, Apps, Media and Settings rendered from `/usr/share/pivista/qml` in the mounted image |
@@ -97,11 +97,11 @@ Status vocabulary:
 | Field | Value |
 |---|---|
 | Image | `releases/pivista-tv-0.2.0-pi5-arm64.img.xz` |
-| Size | 1,230,308,404 bytes (1.23 GB / 1.15 GiB compressed) |
-| SHA-256 | `780ebc937b2ba0831cabf8585153273e7b2cb8f798d09bf337f886ab389d6c36` |
-| Build ID | `20261025T151554Z` |
+| Size | 1,230,308,476 bytes (1.23 GB / 1.15 GiB compressed) |
+| SHA-256 | `02445ff9d2056941a77b02694fccc5f9f7979056fb2bfca8e043347f3ba5f1b4` |
+| Build ID | `20261025T153658Z` |
 | Packages | 1046 installed (versions in the manifest) |
-| Source state | This build was produced from the working tree before the 0.2.0 source commit; the final release image below is rebuilt from the clean commit |
+| Source state | Built from source commit `f4ea16b`; only generated release metadata changed after sealing |
 | Hardware test checklist | [docs/hardware-test.md](docs/hardware-test.md) |
 
 ## What is deliberately absent

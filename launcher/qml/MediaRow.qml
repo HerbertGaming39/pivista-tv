@@ -8,6 +8,7 @@ Item {
 
     signal navigate(int delta, int index)
     signal activated(int index)
+    signal focused()
 
     implicitHeight: Theme.s(214)
     visible: items.length > 0
@@ -50,6 +51,8 @@ Item {
         keyNavigationEnabled: true
         keyNavigationWraps: false
         focus: false
+
+        onActiveFocusChanged: if (activeFocus) row.focused()
 
         Keys.onUpPressed: row.navigate(-1, list.currentIndex)
         Keys.onDownPressed: row.navigate(1, list.currentIndex)

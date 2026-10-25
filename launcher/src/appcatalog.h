@@ -13,6 +13,9 @@ class AppCatalog : public QObject
     Q_PROPERTY(QVariantList recent READ recent NOTIFY changed)
     Q_PROPERTY(QVariantList streaming READ streaming NOTIFY changed)
     Q_PROPERTY(QVariantList nativeApps READ nativeApps NOTIFY changed)
+    Q_PROPERTY(QVariantList games READ games NOTIFY changed)
+    Q_PROPERTY(QVariantList mediaApps READ mediaApps NOTIFY changed)
+    Q_PROPERTY(QVariantMap featured READ featured NOTIFY changed)
     Q_PROPERTY(QVariantList allApps READ allApps NOTIFY changed)
     Q_PROPERTY(bool externalAppActive READ externalAppActive NOTIFY externalAppChanged)
     Q_PROPERTY(QString externalAppName READ externalAppName NOTIFY externalAppChanged)
@@ -25,6 +28,9 @@ public:
     QVariantList recent() const;
     QVariantList streaming() const;
     QVariantList nativeApps() const;
+    QVariantList games() const;
+    QVariantList mediaApps() const;
+    QVariantMap featured() const;
     QVariantList allApps() const;
     bool externalAppActive() const { return m_externalActive; }
     QString externalAppName() const { return m_externalName; }

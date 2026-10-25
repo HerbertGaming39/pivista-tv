@@ -29,6 +29,7 @@ Item {
     readonly property var sections: [
         { id: "network", title: "Network", subtitle: "Wi-Fi, Ethernet and connectivity" },
         { id: "display", title: "Display", subtitle: "Resolution, interface size and idle screen" },
+        { id: "appearance", title: "Appearance", subtitle: "Theme, wallpaper, home rows and clock" },
         { id: "audio", title: "Audio", subtitle: "HDMI output, volume and speaker test" },
         { id: "applications", title: "Applications", subtitle: "Favourites, hidden apps and web shortcuts" },
         { id: "system", title: "System", subtitle: "Build, temperature, storage and diagnostics" },
@@ -166,6 +167,7 @@ Item {
         let focused = false
         if (page === "network") focused = netActions.focusFirst()
         else if (page === "display") focused = displayModes.focusFirst()
+        else if (page === "appearance") focused = themeActions.focusFirst()
         else if (page === "audio") focused = audioActions.focusFirst()
         else if (page === "applications") focused = appActions.focusFirst()
         else if (page === "system") focused = systemActions.focusFirst()
@@ -205,7 +207,12 @@ Item {
         return lines.slice(Math.max(0, lines.length - 18)).join("\n")
     }
 
-    Component.onCompleted: loadUpdate()
+    Component.onCompleted: {
+        if (initialSettingsPage.length > 0)
+            openPage(initialSettingsPage)
+        else
+            loadUpdate()
+    }
 
     Connections {
         target: control
@@ -489,6 +496,147 @@ Item {
                     settings.flash("Idle screen updated", false)
                 }
                 onNavigateUp: motionActions.focusFirst()
+            }
+        }
+    }
+
+    // ----------------------------------------------------------- appearance
+    Item {
+        id: appearancePage
+        anchors.fill: parent
+        visible: settings.page === "appearance"
+
+        Column {
+            anchors.fill: parent
+            spacing: Theme.s(10)
+
+            Text { text: "Appearance"; color: Theme.text; font.family: Theme.fontFamily; font.pixelSize: Theme.s(26); font.weight: Font.DemiBold }
+            Text {
+                width: parent.width
+                text: "Everything here is local to this television and applies immediately."
+                color: Theme.textFaint
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.s(13)
+            }
+
+            Row {
+                width: parent.width
+                height: parent.height - y
+                spacing: Theme.s(36)
+
+                Column {
+                    width: (parent.width - Theme.s(36)) * 0.46
+                    spacing: Theme.s(8)
+
+                    Text { text: "Theme"; color: Theme.textDim; font.family: Theme.fontFamily; font.pixelSize: Theme.s(15); font.weight: Font.DemiBold }
+                    ActionList {
+                        id: themeActions
+                        width: parent.width
+                        height: Theme.s(190)
+                        actions: [
+                            { label: "Aurora", detail: AppSettings.theme === "aurora" ? "current" : "cyan and violet" },
+                            { label: "Midnight", detail: AppSettings.theme === "midnight" ? "current" : "high contrast blue-black" },
+                            { label: "Warm", detail: AppSettings.theme === "warm" ? "current" : "amber and cream" }
+                        ]
+                        onTriggered: function (index) {
+                            AppSettings.theme = index === 0 ? "aurora" : (index === 1 ? "midnight" : "warm")
+                            settings.flash("Theme updated", false)
+                        }
+                        onNavigateUp: settings.requestHeaderFocus()
+                        onNavigateDown: wallpaperActions.focusFirst()
+                    }
+
+                    Text { text: "Wallpaper"; color: Theme.textDim; font.family: Theme.fontFamily; font.pixelSize: Theme.s(15); font.weight: Font.DemiBold }
+                    ActionList {
+                        id: wallpaperActions
+                        width: parent.width
+                        height: Theme.s(190)
+                        actions: [
+                            { label: "Aurora glow", detail: AppSettings.wallpaper === "aurora" ? "current" : "soft colour fields" },
+                            { label: "Nebula", detail: AppSettings.wallpaper === "nebula" ? "current" : "violet night sky" },
+                            { label: "Graphite", detail: AppSettings.wallpaper === "graphite" ? "current" : "neutral and quiet" }
+                        ]
+                        onTriggered: function (index) {
+                            AppSettings.wallpaper = index === 0 ? "aurora" : (index === 1 ? "nebula" : "graphite")
+                            settings.flash("Wallpaper updated", false)
+                        }
+                        onNavigateUp: themeActions.focusFirst()
+                        onNavigateDown: rowActions.focusFirst()
+                    }
+                }
+
+                Column {
+                    width: parent.width - Theme.s(36) - (parent.width - Theme.s(36)) * 0.46
+                    spacing: Theme.s(8)
+
+                    Text { text: "Home rows"; color: Theme.textDim; font.family: Theme.fontFamily; font.pixelSize: Theme.s(15); font.weight: Font.DemiBold }
+                    ActionList {
+                        id: rowActions
+                        width: parent.width
+                        height: Theme.s(252)
+                        actions: [
+                            { label: "Recently opened", detail: AppSettings.showRecent ? "shown" : "hidden" },
+                            { label: "Your apps", detail: AppSettings.showFavorites ? "shown" : "hidden" },
+                            { label: "Streaming", detail: AppSettings.showStreaming ? "shown" : "hidden" },
+                            { label: "Installed applications", detail: AppSettings.showApps ? "shown" : "hidden" }
+                        ]
+                        onTriggered: function (index) {
+                            if (index === 0) AppSettings.showRecent = !AppSettings.showRecent
+                            else if (index === 1) AppSettings.showFavorites = !AppSettings.showFavorites
+                            else if (index === 2) AppSettings.showStreaming = !AppSettings.showStreaming
+                            else AppSettings.showApps = !AppSettings.showApps
+                            settings.flash("Home row visibility updated", false)
+                        }
+                        onNavigateUp: wallpaperActions.focusFirst()
+                        onNavigateDown: startActions.focusFirst()
+                    }
+
+                    Row {
+                        width: parent.width
+                        spacing: Theme.s(16)
+
+                        Column {
+                            width: (parent.width - Theme.s(16)) / 2
+                            spacing: Theme.s(6)
+                            Text { text: "On launch"; color: Theme.textDim; font.family: Theme.fontFamily; font.pixelSize: Theme.s(15); font.weight: Font.DemiBold }
+                            ActionList {
+                                id: startActions
+                                width: parent.width
+                                height: Theme.s(130)
+                                actions: [
+                                    { label: "Open Home", detail: AppSettings.startScreen === "home" ? "current" : "" },
+                                    { label: "Open Apps", detail: AppSettings.startScreen === "apps" ? "current" : "" }
+                                ]
+                                onTriggered: function (index) {
+                                    AppSettings.startScreen = index === 0 ? "home" : "apps"
+                                    settings.flash("Start screen updated for the next launch", false)
+                                }
+                                onNavigateUp: rowActions.focusFirst()
+                                onNavigateDown: clockActions.focusFirst()
+                            }
+                        }
+
+                        Column {
+                            width: (parent.width - Theme.s(16)) / 2
+                            spacing: Theme.s(6)
+                            Text { text: "Clock"; color: Theme.textDim; font.family: Theme.fontFamily; font.pixelSize: Theme.s(15); font.weight: Font.DemiBold }
+                            ActionList {
+                                id: clockActions
+                                width: parent.width
+                                height: Theme.s(130)
+                                actions: [
+                                    { label: "24-hour clock", detail: AppSettings.clock24h ? "current" : "" },
+                                    { label: "12-hour clock", detail: AppSettings.clock24h ? "" : "current" }
+                                ]
+                                onTriggered: function (index) {
+                                    AppSettings.clock24h = index === 0
+                                    settings.flash("Clock format updated", false)
+                                }
+                                onNavigateUp: startActions.focusFirst()
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -811,7 +959,7 @@ Item {
             spacing: Theme.s(10)
 
             Text { text: "About PiVista TV"; color: Theme.text; font.family: Theme.fontFamily; font.pixelSize: Theme.s(26); font.weight: Font.DemiBold }
-            InfoLine { width: parent.width; label: "Version"; value: (settings.sysInfo.version || "0.1.0") + " “" + (settings.sysInfo.codename || "Aurora") + "”" }
+            InfoLine { width: parent.width; label: "Version"; value: (settings.sysInfo.version || "0.2.0") + " “" + (settings.sysInfo.codename || "Borealis") + "”" }
             InfoLine { width: parent.width; label: "Build"; value: settings.sysInfo.build_id || "development" }
             InfoLine { width: parent.width; label: "Model"; value: settings.sysInfo.model || "Raspberry Pi 5" }
             InfoLine { width: parent.width; label: "Kernel"; value: settings.sysInfo.kernel || "—" }

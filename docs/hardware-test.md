@@ -6,11 +6,11 @@ because the screen looked plausible once.
 
 ## Before flashing
 
-- [ ] Image: `releases/pivista-tv-0.1.0-pi5-arm64.img.xz`
-      (1,290,377,464 bytes; build `20261025T133307Z`)
-- [ ] Expected SHA-256: `576f4a056fb405cae2f800bf581ba91099726b9a8a43d93659f78d8f8cc1be82`
-- [ ] Verify the SHA-256 against `releases/pivista-tv-0.1.0-pi5-arm64.img.xz.sha256`
-      (Windows `Get-FileHash`, Linux `sha256sum -c`).
+- [ ] Image: `pivista-tv-0.2.0-pi5-arm64.img.xz` from the v0.2.0 GitHub
+      release or `releases/` after a local build.
+- [ ] Compare the SHA-256 with the adjacent `.img.xz.sha256` file and the value
+      published in the release notes (Windows `Get-FileHash`, Linux
+      `sha256sum -c`). Do not flash if they differ.
 - [ ] Use a known-good microSD (A2 recommended) or USB SSD, at least 8 GB.
 - [ ] Official 27 W USB-C supply, HDMI cable, USB keyboard or remote.
 - [ ] Flash with Raspberry Pi Imager or balenaEtcher. Do **not** apply Imager OS
@@ -56,6 +56,20 @@ because the screen looked plausible once.
       The streaming window closes and the launcher returns to Home.
 - [ ] Launch a native app; press **Home**. The app closes and Home returns.
 - [ ] Press Home twice quickly; the UI does not get stuck or double-launch.
+
+## 0.2 interface
+
+- [ ] Home shows the featured banner, **Your apps**, **Streaming** and
+      **Installed applications** rows without overlapping or blank content.
+- [ ] **Games** opens and shows a clear empty state when no game is installed.
+- [ ] **Media** opens with the streaming row visible (not a blank page); a
+      launch of a shortcut adds it to **Recently opened** on Home and Media.
+- [ ] Pressing Down from the top navigation lands on the featured banner; Enter
+      opens it; Down again reaches the first row.
+- [ ] **Apps → I** opens details; favourite/hide changes are reflected on Home.
+- [ ] Settings → Appearance changes theme, wallpaper, row visibility, start
+      screen and 12/24-hour clock; each change applies without a restart.
+- [ ] Back/Backspace and Escape both return to the previous screen or Home.
 
 ## Settings and power
 

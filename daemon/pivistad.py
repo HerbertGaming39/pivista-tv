@@ -38,7 +38,7 @@ import traceback
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 MAX_MESSAGE = 64 * 1024
 DEFAULT_SOCKET = "/run/pivista/control.sock"
 DEFAULT_CONFIG = "/etc/pivista"

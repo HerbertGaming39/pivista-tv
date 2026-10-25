@@ -3,6 +3,7 @@
 #include <QDir>
 #include <QFile>
 #include <QSettings>
+#include <QSignalSpy>
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QTest>
@@ -21,6 +22,7 @@ private slots:
     void discoversDesktopEntries();
     void rejectsTerminalAndMissingPrograms();
     void favouritesAndHiddenPersist();
+    void launchesNativeAppAndRecordsRecent();
 
 private:
     QTemporaryDir m_dir;
@@ -51,6 +53,9 @@ void AppCatalogTest::initTestCase()
           "[Desktop Entry]\nType=Application\nName=Terminal Tool\nExec=/bin/true\nTerminal=true\n");
     write("missing.desktop",
           "[Desktop Entry]\nType=Application\nName=Missing Tool\nExec=/definitely/not/installed\n");
+    write("game.desktop",
+          "[Desktop Entry]\nType=Application\nName=Test Game\nExec=/bin/true\n"
+          "Categories=Game;\n");
     write("hidden.desktop",
           "[Desktop Entry]\nType=Application\nName=Hidden Tool\nExec=/bin/true\nNoDisplay=true\n");
 }
@@ -101,9 +106,19 @@ void AppCatalogTest::discoversDesktopEntries()
 
     const QVariantMap player = catalog.application("native:player");
     QCOMPARE(player.value("kind").toString(), QStringLiteral("native"));
-    QCOMPARE(player.value("category").toString(), QStringLiteral("Applications"));
+    QCOMPARE(player.value("category").toString(), QStringLiteral("Media"));
+    QVERIFY(player.value("installed").toBool());
+    QVERIFY(!player.value("web").toBool());
     QVERIFY(player.value("valid").toBool());
     QCOMPARE(player.value("icon").toString(), QStringLiteral("image://pivistaicon/media-playback-start"));
+
+    const QVariantList games = catalog.games();
+    QCOMPARE(games.size(), 1);
+    QCOMPARE(games.first().toMap().value("name").toString(), QStringLiteral("Test Game"));
+
+    const QVariantList media = catalog.mediaApps();
+    QCOMPARE(media.size(), 1);
+    QCOMPARE(media.first().toMap().value("name").toString(), QStringLiteral("Test Player"));
 }
 
 void AppCatalogTest::rejectsTerminalAndMissingPrograms()
@@ -139,6 +154,7 @@ void AppCatalogTest::favouritesAndHiddenPersist()
         AppCatalog catalog;
         catalog.toggleFavorite("native:player");
         QCOMPARE(catalog.favorites().size(), 1);
+        QCOMPARE(catalog.featured().value("id").toString(), QStringLiteral("native:player"));
         catalog.setHidden("native:player", true);
         QCOMPARE(catalog.favorites().size(), 0);
         QVERIFY(!catalog.application("native:player").isEmpty());
@@ -151,6 +167,18 @@ void AppCatalogTest::favouritesAndHiddenPersist()
         reloaded.setHidden("native:player", false);
         QVERIFY(!reloaded.application("native:player").value("hidden").toBool());
     }
+}
+
+void AppCatalogTest::launchesNativeAppAndRecordsRecent()
+{
+    AppCatalog catalog;
+    QSignalSpy finished(&catalog, &AppCatalog::launchFinished);
+    catalog.launch(QStringLiteral("native:player"));
+    QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 4000);
+    QVERIFY(!catalog.externalAppActive());
+    QCOMPARE(catalog.recent().size(), 1);
+    QCOMPARE(catalog.recent().first().toMap().value("id").toString(),
+             QStringLiteral("native:player"));
 }
 
 QTEST_GUILESS_MAIN(AppCatalogTest)

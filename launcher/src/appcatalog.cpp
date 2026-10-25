@@ -24,6 +24,23 @@ const QStringList kDefaultFavorites = {
     QStringLiteral("web.tvpvod"),
 };
 
+QString inferCategory(const QString &rawCategories)
+{
+    const QStringList categories = rawCategories.split(QLatin1Char(';'), Qt::SkipEmptyParts);
+    bool media = false;
+    for (const QString &raw : categories) {
+        const QString category = raw.trimmed().toLower();
+        if (category == QLatin1String("game") || category == QLatin1String("games")
+            || category == QLatin1String("emulator"))
+            return QStringLiteral("Games");
+        if (category == QLatin1String("audiovideo") || category == QLatin1String("audio")
+            || category == QLatin1String("video") || category == QLatin1String("player")
+            || category == QLatin1String("media"))
+            media = true;
+    }
+    return media ? QStringLiteral("Media") : QStringLiteral("Applications");
+}
+
 QString slugify(const QString &text)
 {
     QString slug = text.toLower();
@@ -112,7 +129,7 @@ void AppCatalog::scanDesktopEntries()
             entry.kind = QStringLiteral("native");
             entry.icon = desktop.value(QStringLiteral("Icon")).toString();
             entry.comment = desktop.value(QStringLiteral("Comment")).toString();
-            entry.category = QStringLiteral("Applications");
+            entry.category = inferCategory(desktop.value(QStringLiteral("Categories")).toString());
             entry.compatibility = QStringLiteral("native");
             entry.exec = rawExec;
             entry.shortName = name.left(1).toUpper();
@@ -238,6 +255,8 @@ QVariantMap AppCatalog::toMap(const Entry &entry) const
     map.insert(QStringLiteral("short"), entry.shortName);
     map.insert(QStringLiteral("color"), entry.color);
     map.insert(QStringLiteral("kind"), entry.kind);
+    map.insert(QStringLiteral("installed"), entry.kind == QLatin1String("native"));
+    map.insert(QStringLiteral("web"), entry.kind == QLatin1String("web"));
     map.insert(QStringLiteral("icon"), resolvedIcon(entry));
     map.insert(QStringLiteral("category"), entry.category.isEmpty() ? QStringLiteral("Applications") : entry.category);
     map.insert(QStringLiteral("comment"), entry.comment);
@@ -248,6 +267,7 @@ QVariantMap AppCatalog::toMap(const Entry &entry) const
     map.insert(QStringLiteral("favorite"), m_favoriteIds.contains(entry.id));
     map.insert(QStringLiteral("hidden"), m_hiddenIds.contains(entry.id));
     map.insert(QStringLiteral("url"), entry.url);
+    map.insert(QStringLiteral("program"), entry.program);
     return map;
 }
 
@@ -352,6 +372,55 @@ QVariantList AppCatalog::nativeApps() const
     return result;
 }
 
+QVariantList AppCatalog::games() const
+{
+    QVariantList result;
+    for (const Entry &entry : m_entries) {
+        if (!listed(entry) || entry.category != QLatin1String("Games"))
+            continue;
+        result.append(toMap(entry));
+    }
+    return result;
+}
+
+QVariantList AppCatalog::mediaApps() const
+{
+    QVariantList result;
+    for (const Entry &entry : m_entries) {
+        if (!listed(entry) || entry.kind != QLatin1String("native")
+            || entry.category != QLatin1String("Media"))
+            continue;
+        result.append(toMap(entry));
+    }
+    return result;
+}
+
+QVariantMap AppCatalog::featured() const
+{
+    // Prefer something the user explicitly favourited, then a streaming
+    // shortcut, then any usable application. This keeps the hero relevant
+    // without inventing editorial artwork or a network service.
+    for (const QString &id : m_favoriteIds) {
+        const Entry *entry = find(id);
+        if (entry && listed(*entry) && entry->kind == QLatin1String("web"))
+            return toMap(*entry);
+    }
+    for (const QString &id : m_favoriteIds) {
+        const Entry *entry = find(id);
+        if (entry && listed(*entry))
+            return toMap(*entry);
+    }
+    for (const Entry &entry : m_entries) {
+        if (listed(entry) && entry.kind == QLatin1String("web"))
+            return toMap(entry);
+    }
+    for (const Entry &entry : m_entries) {
+        if (listed(entry))
+            return toMap(entry);
+    }
+    return {};
+}
+
 QVariantMap AppCatalog::application(const QString &id) const
 {
     const Entry *entry = find(id);
@@ -447,17 +516,22 @@ bool AppCatalog::startProcess(const QString &program, const QStringList &argumen
 
     m_activeId = id;
     m_externalName = name;
-    connect(m_process, &QProcess::finished, this, [this](int code, QProcess::ExitStatus status) {
+    QProcess *const process = m_process;
+    connect(process, &QProcess::finished, this, [this, process](int code, QProcess::ExitStatus status) {
         Q_UNUSED(code)
         Q_UNUSED(status)
+        // A superseded process can finish after a new app has already started;
+        // it must not clear the current app's state or launch history.
+        if (m_process != process)
+            return;
         m_externalActive = false;
         const QString finishedId = m_activeId;
         m_activeId.clear();
         emit externalAppChanged();
         emit launchFinished(finishedId);
     });
-    connect(m_process, &QProcess::errorOccurred, this, [this, name](QProcess::ProcessError error) {
-        if (error == QProcess::FailedToStart) {
+    connect(process, &QProcess::errorOccurred, this, [this, process, name](QProcess::ProcessError error) {
+        if (error == QProcess::FailedToStart && m_process == process) {
             m_externalActive = false;
             emit externalAppChanged();
             emit launchFailed(tr("%1 could not be started.").arg(name));

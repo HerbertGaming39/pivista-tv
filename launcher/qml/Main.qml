@@ -18,7 +18,9 @@ Window {
     // 720p television, a 4K panel and an offscreen test all keep their layout.
     readonly property real designScale: Math.max(0.5, Math.min(width / 1920, height / 1080))
 
-    property string screen: initialScreen.length > 0 ? initialScreen : "home"
+    property string view: initialScreen.length > 0
+                           ? initialScreen
+                           : (AppSettings.startScreen === "apps" ? "apps" : "home")
     property bool quickOpen: false
     property bool screensaverActive: false
     property double lastInput: Date.now()
@@ -26,20 +28,24 @@ Window {
     property bool online: false
     property string netLabel: "offline"
     property int statusRequest: -1
-    property string clockText: Qt.formatTime(new Date(), "HH:mm")
+    property string clockText: Qt.formatTime(new Date(), AppSettings.clock24h ? "HH:mm" : "h:mm AP")
     property string dateText: Qt.formatDateTime(new Date(), "ddd d MMM")
     property bool wizardVisible: !AppSettings.setupComplete && !uiDevMode
 
-    readonly property var navItems: ["Home", "Apps", "Search", "Settings", "Quick"]
+    readonly property var navItems: ["Home", "Apps", "Games", "Media", "Search", "Settings"]
 
     Binding { target: Theme; property: "scale"; value: AppSettings.uiScale * window.designScale }
     Binding { target: Theme; property: "animations"; value: AppSettings.animations }
+    Binding { target: Theme; property: "mode"; value: AppSettings.theme }
+    Binding { target: Theme; property: "wallpaper"; value: AppSettings.wallpaper }
 
     function activeIndex() {
-        if (window.screen === "home") return 0
-        if (window.screen === "apps") return 1
-        if (window.screen === "search") return 2
-        if (window.screen === "settings") return 3
+        if (window.view === "home") return 0
+        if (window.view === "apps") return 1
+        if (window.view === "games") return 2
+        if (window.view === "media") return 3
+        if (window.view === "search") return 4
+        if (window.view === "settings") return 5
         return 0
     }
 
@@ -48,13 +54,11 @@ Window {
     }
 
     function activateNav(index) {
-        if (index === 4) {
-            openQuick()
+        const names = ["home", "apps", "games", "media", "search", "settings"]
+        if (!names[index])
             return
-        }
-        const names = ["home", "apps", "search", "settings"]
-        if (window.screen !== names[index])
-            window.screen = names[index]
+        if (window.view !== names[index])
+            window.view = names[index]
         else
             focusContent()
     }
@@ -72,7 +76,7 @@ Window {
     }
 
     function goHome() {
-        window.screen = "home"
+        window.view = "home"
         Qt.callLater(focusContent)
     }
 
@@ -82,7 +86,7 @@ Window {
     }
 
     function restoreAfterOverlay() {
-        if (window.screen === "home")
+        if (window.view === "home")
             focusContent()
         else
             focusHeader()
@@ -112,7 +116,7 @@ Window {
         statusRequest = control.call("network.status", {}, 15000)
     }
 
-    onScreenChanged: {
+    onViewChanged: {
         syncNav()
         Qt.callLater(focusContent)
     }
@@ -173,7 +177,7 @@ Window {
         repeat: true
         running: true
         onTriggered: {
-            window.clockText = Qt.formatTime(new Date(), "HH:mm")
+            window.clockText = Qt.formatTime(new Date(), AppSettings.clock24h ? "HH:mm" : "h:mm AP")
             window.dateText = Qt.formatDateTime(new Date(), "ddd d MMM")
         }
     }
@@ -216,11 +220,11 @@ Window {
                 Qt.callLater(window.focusContent)
                 return
             }
-            if (event.key === Qt.Key_Escape) {
+            if (event.key === Qt.Key_Escape || event.key === Qt.Key_Back) {
                 if (window.quickOpen) {
                     quickPanel.close()
                     event.accepted = true
-                } else if (window.screen !== "home") {
+                } else if (window.view !== "home") {
                     window.goHome()
                     event.accepted = true
                 }
@@ -237,9 +241,9 @@ Window {
         Rectangle {
             anchors.fill: parent
             gradient: Gradient {
-                GradientStop { position: 0.0; color: "#081120" }
+                GradientStop { position: 0.0; color: Theme.wallpaperTop }
                 GradientStop { position: 0.55; color: Theme.bg }
-                GradientStop { position: 1.0; color: "#02040a" }
+                GradientStop { position: 1.0; color: Theme.wallpaperBottom }
             }
         }
 
@@ -256,7 +260,7 @@ Window {
                     centerRadius: Theme.s(650)
                     focalX: Theme.s(650)
                     focalY: Theme.s(650)
-                    GradientStop { position: 0.0; color: Qt.rgba(0.43, 0.91, 0.98, 0.13) }
+                    GradientStop { position: 0.0; color: Theme.glowA }
                     GradientStop { position: 0.45; color: Qt.rgba(0.43, 0.91, 0.98, 0.05) }
                     GradientStop { position: 1.0; color: "transparent" }
                 }
@@ -284,7 +288,7 @@ Window {
                     centerRadius: Theme.s(550)
                     focalX: Theme.s(550)
                     focalY: Theme.s(550)
-                    GradientStop { position: 0.0; color: Qt.rgba(0.65, 0.55, 0.98, 0.11) }
+                    GradientStop { position: 0.0; color: Theme.glowB }
                     GradientStop { position: 0.5; color: Qt.rgba(0.65, 0.55, 0.98, 0.04) }
                     GradientStop { position: 1.0; color: "transparent" }
                 }
@@ -333,7 +337,7 @@ Window {
                 anchors.left: brand.right
                 anchors.leftMargin: Theme.s(46)
                 anchors.verticalCenter: parent.verticalCenter
-                width: Theme.s(600)
+                width: Theme.s(760)
                 height: Theme.s(54)
                 orientation: ListView.Horizontal
                 spacing: Theme.s(6)
@@ -415,10 +419,12 @@ Window {
             anchors.rightMargin: Theme.screenMargin
             anchors.bottomMargin: Theme.s(38)
 
-            sourceComponent: window.screen === "home" ? homeScreen
-                           : window.screen === "apps" ? appsScreen
-                           : window.screen === "search" ? searchScreen
-                           : window.screen === "settings" ? settingsScreen
+            sourceComponent: window.view === "home" ? homeScreen
+                           : window.view === "apps" ? appsScreen
+                           : window.view === "games" ? gamesScreen
+                           : window.view === "media" ? mediaScreen
+                           : window.view === "search" ? searchScreen
+                           : window.view === "settings" ? settingsScreen
                            : homeScreen
 
             onLoaded: {
@@ -430,7 +436,9 @@ Window {
         }
 
         Component { id: homeScreen; HomeScreen {} }
-        Component { id: appsScreen; AppsScreen {} }
+        Component { id: appsScreen; AppsScreen { mode: "apps" } }
+        Component { id: gamesScreen; AppsScreen { mode: "games" } }
+        Component { id: mediaScreen; MediaScreen {} }
         Component { id: searchScreen; SearchScreen {} }
         Component { id: settingsScreen; SettingsScreen {} }
 
@@ -482,7 +490,7 @@ Window {
         WizardScreen {
             id: wizard
             onCompleted: {
-                window.screen = "home"
+                window.view = "home"
                 window.showToast(wizard.setupWarning.length > 0
                                  ? "Setup complete · " + wizard.setupWarning
                                  : "Setup complete")

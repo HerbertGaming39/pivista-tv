@@ -9,6 +9,7 @@ Item {
     property bool showBadge: true
 
     signal activated()
+    signal detailsRequested()
 
     implicitWidth: Theme.s(216)
     implicitHeight: Theme.s(160)
@@ -137,5 +138,6 @@ Item {
         anchors.fill: parent
         hoverEnabled: true
         onClicked: tile.activated()
+        onPressAndHold: tile.detailsRequested()
     }
 }

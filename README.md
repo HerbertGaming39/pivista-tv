@@ -15,8 +15,10 @@ Flash → boot → first-time setup → television
 - A purpose-built **Raspberry Pi OS (Debian 13 "trixie", arm64) derivative**
   with a pinned base image, a reproducible overlay pipeline and its own
   product identity.
-- A **Qt 6 / QML launcher** designed for a ten-foot interface, with directional
-  focus, favourites, search, a first-boot wizard and a full settings app.
+- A **Qt 6 / QML launcher** designed for a ten-foot interface, with an
+  Android-TV-style home banner, horizontal app/media rows, app details,
+  favourites, recently opened apps, search, a first-boot wizard and a full
+  settings app.
 - A **narrow privileged service** (`pivistad`) that owns network, audio,
   display, update and power operations. The launcher runs unprivileged.
 - A **sway kiosk session** that provides a real global Home key, so a streaming
@@ -30,10 +32,36 @@ Flash → boot → first-time setup → television
 - **Not a Netflix/Disney+ certification.** Protected playback is limited by
   Widevine L3 and the providers' own device policies. See
   [docs/streaming.md](docs/streaming.md); no 1080p claim is made.
-- **Not validated on physical hardware by this build host.** The image is
-  structurally validated only. See [STATUS.md](STATUS.md).
+- **Not validated on physical hardware for this release.** The image is
+  structurally validated and its sealed launcher is rendered under qemu-user;
+  the physical Pi was unreachable during the 0.2.0 build. See
+  [STATUS.md](STATUS.md).
 - **Not a fork of the Linux kernel or Raspberry Pi firmware.** Upstream
   Raspberry Pi OS components are pinned, not patched.
+
+## The 0.2 interface
+
+- **Home** is a television home screen: a large featured banner, a favourites
+  row, a streaming row, recently opened applications and installed native apps.
+  The banner uses the selected entry's own colour and initials; it does not copy
+  provider logos or artwork.
+- **Apps** lists installed Linux applications and web shortcuts with a clear
+  **INSTALLED APPLICATION** / **WEB SHORTCUT** distinction, category filters and
+  a details sheet (open, favourite, hide, launch errors).
+- **Games** is the same library filtered to the `Game` category, with an honest
+  empty state when nothing is installed.
+- **Media** collects streaming shortcuts and installed media applications. It
+  labels launch history as **Recently opened**; it does not pretend to know a
+  playback position without a real player/provider integration.
+- **Settings** is a full TV settings app. Appearance offers theme, wallpaper,
+  home-row visibility, start screen and 12/24-hour clock; changes persist in
+  `~/.config/PiVista/Launcher.conf`.
+- **Focus** is designed for a remote: directional movement across the header and
+  rows, Enter/OK, Escape/Back and a global Home key. Focus rings are visible at
+  720p, 1080p and 4K.
+
+The interface is original work. It is inspired by the usability of modern TV
+operating systems but uses no Google/Android branding or proprietary assets.
 
 ## Supported hardware
 
@@ -51,19 +79,22 @@ Flash → boot → first-time setup → television
 Implemented and covered by automated tests:
 
 - Image pipeline (fetch → verify → expand → chroot → overlay → seal → validate)
-- Launcher (Qt 6 C++/QML), application discovery, web shortcuts, favourites
+- Launcher (Qt 6 C++/QML): featured home banner, Home/Apps/Games/Media/Search/
+  Settings sections, application discovery, web shortcuts, favourites, app
+  details, recently opened apps and appearance settings
 - `pivistad` action API with validation and unit tests
 - First-boot wizard, settings, search, screensaver, quick panel
 - NetworkManager/PipeWire integration code paths
 - Image structure validation and package manifest
 
-Automated tests in this build: **38 host Python tests, 6 launcher/Qt cases, 19
+Automated tests in this build: **38 host Python tests, 6 launcher/Qt cases, 27
 offscreen screen renders and 46/46 image checks**. The image is structurally
-validated, not booted.
+validated, its sealed launcher was rendered under qemu-user, and it is not
+booted on a Pi.
 
 Not verified, and labelled as such in the product:
 
-- Boot on a physical Raspberry Pi 5 (no hardware attached to the build host)
+- Boot on a physical Raspberry Pi 5 (the Pi was unreachable during this build)
 - Protected playback (Netflix, Disney+, Prime Video, etc.)
 - HDMI-CEC remote control
 - Hardware HEVC decode inside Chromium
@@ -95,9 +126,9 @@ wsl -d Ubuntu -u root -- bash /mnt/c/path/to/pivista-tv/build.sh image
 Outputs land in `releases/`:
 
 ```
-pivista-tv-0.1.0-pi5-arm64.img.xz
-pivista-tv-0.1.0-pi5-arm64.img.xz.sha256
-pivista-tv-0.1.0-pi5-arm64.manifest.json
+pivista-tv-0.2.0-pi5-arm64.img.xz
+pivista-tv-0.2.0-pi5-arm64.img.xz.sha256
+pivista-tv-0.2.0-pi5-arm64.manifest.json
 RELEASE-NOTES.md
 ```
 
@@ -109,30 +140,30 @@ Full details, including resource use and incremental builds, are in
 This is the image to test on a physical Raspberry Pi 5. The build host could not
 boot it; the checks below are structural and host-side only.
 
-Download it from the [v0.1.0 GitHub release](https://github.com/HerbertGaming39/pivista-tv/releases/tag/v0.1.0).
-The 1.2 GiB image is a release asset, not a file in the Git tree; `releases/` is
+Download it from the [v0.2.0 GitHub release](https://github.com/HerbertGaming39/pivista-tv/releases/tag/v0.2.0).
+The 1.23 GB image is a release asset, not a file in the Git tree; `releases/` is
 where a local build writes it.
 
 | Field | Value |
 |---|---|
-| Image | [`pivista-tv-0.1.0-pi5-arm64.img.xz`](https://github.com/HerbertGaming39/pivista-tv/releases/download/v0.1.0/pivista-tv-0.1.0-pi5-arm64.img.xz) |
-| Size | 1,290,377,464 bytes (1.20 GiB compressed) |
-| SHA-256 | `576f4a056fb405cae2f800bf581ba91099726b9a8a43d93659f78d8f8cc1be82` |
-| Build ID | `20261025T133307Z` |
-| Host tests | 38 host Python tests, 6 launcher/Qt cases, 19 offscreen screen renders, 46/46 image checks (this build) |
+| Image | [`pivista-tv-0.2.0-pi5-arm64.img.xz`](https://github.com/HerbertGaming39/pivista-tv/releases/download/v0.2.0/pivista-tv-0.2.0-pi5-arm64.img.xz) |
+| Size | 1,230,308,404 bytes (1.23 GB compressed) |
+| SHA-256 | `780ebc937b2ba0831cabf8585153273e7b2cb8f798d09bf337f886ab389d6c36` |
+| Build ID | `20261025T151554Z` |
+| Host tests | 38 host Python tests, 6 launcher/Qt cases, 27 offscreen screen renders, 46/46 image checks (this build) |
 | Hardware test checklist | [docs/hardware-test.md](docs/hardware-test.md) |
 
 Verify the checksum before writing anything:
 
 ```powershell
 # Windows PowerShell
-Get-FileHash .\pivista-tv-0.1.0-pi5-arm64.img.xz -Algorithm SHA256
-Get-Content .\pivista-tv-0.1.0-pi5-arm64.img.xz.sha256
+Get-FileHash .\pivista-tv-0.2.0-pi5-arm64.img.xz -Algorithm SHA256
+Get-Content .\pivista-tv-0.2.0-pi5-arm64.img.xz.sha256
 ```
 
 ```bash
 # Linux / WSL, from the releases directory
-sha256sum -c pivista-tv-0.1.0-pi5-arm64.img.xz.sha256
+sha256sum -c pivista-tv-0.2.0-pi5-arm64.img.xz.sha256
 ```
 
 ### Windows
@@ -151,8 +182,8 @@ sha256sum -c pivista-tv-0.1.0-pi5-arm64.img.xz.sha256
 ```bash
 lsblk                       # identify the card; never guess /dev/sdX
 cd pivista-tv/releases
-sha256sum -c pivista-tv-0.1.0-pi5-arm64.img.xz.sha256
-xz -dc pivista-tv-0.1.0-pi5-arm64.img.xz | \
+sha256sum -c pivista-tv-0.2.0-pi5-arm64.img.xz.sha256
+xz -dc pivista-tv-0.2.0-pi5-arm64.img.xz | \
   sudo dd of=/dev/sdX bs=4M status=progress conv=fsync
 sync
 ```
@@ -190,7 +221,7 @@ it. See [docs/recovery.md](docs/recovery.md).
 |---|---|
 | Arrows | Move focus |
 | Enter / OK | Select |
-| Escape / Back | Back; from a top-level screen returns Home |
+| Escape / Backspace / remote Back | Back; from a top-level screen returns Home |
 | Home | Return to launcher from any app (global, handled by sway) |
 | Volume keys | PipeWire volume (global) |
 | F10 / Menu | Quick settings |

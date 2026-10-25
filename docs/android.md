@@ -2,7 +2,7 @@
 
 ## Decision
 
-**No Android runtime is shipped in PiVista TV 0.1.** The Linux TV experience is
+**No Android runtime is shipped in PiVista TV 0.2.** The Linux TV experience is
 the product. Android support is an optional, experimental integration point and
 is classified as **unsupported** in the UI and status file.
 

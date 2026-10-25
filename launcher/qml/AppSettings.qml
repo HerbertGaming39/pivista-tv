@@ -21,6 +21,14 @@ Item {
         property string timezone: "Europe/Warsaw"
         property bool privacyAccepted: false
         property bool updateNotifications: true
+        property string theme: "aurora"
+        property string wallpaper: "aurora"
+        property bool showRecent: true
+        property bool showFavorites: true
+        property bool showStreaming: true
+        property bool showApps: true
+        property string startScreen: "home"
+        property bool clock24h: true
     }
 
     property alias setupComplete: storage.setupComplete
@@ -31,4 +39,12 @@ Item {
     property alias timezone: storage.timezone
     property alias privacyAccepted: storage.privacyAccepted
     property alias updateNotifications: storage.updateNotifications
+    property alias theme: storage.theme
+    property alias wallpaper: storage.wallpaper
+    property alias showRecent: storage.showRecent
+    property alias showFavorites: storage.showFavorites
+    property alias showStreaming: storage.showStreaming
+    property alias showApps: storage.showApps
+    property alias startScreen: storage.startScreen
+    property alias clock24h: storage.clock24h
 }

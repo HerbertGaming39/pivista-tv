@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
 {
     for (int i = 1; i < argc; ++i) {
         if (QString::fromLocal8Bit(argv[i]) == QLatin1String("--version")) {
-            printf("PiVista TV launcher 0.1.0\n");
+            printf("PiVista TV launcher 0.2.0\n");
             return 0;
         }
     }
@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
     QGuiApplication app(argc, argv);
     QGuiApplication::setApplicationName(QStringLiteral("PiVista Launcher"));
     QGuiApplication::setOrganizationName(QStringLiteral("PiVista"));
-    QGuiApplication::setApplicationVersion(QStringLiteral("0.1.0"));
+    QGuiApplication::setApplicationVersion(QStringLiteral("0.2.0"));
     QGuiApplication::setDesktopFileName(QStringLiteral("pivista-launcher"));
 
     bool windowed = false;
@@ -79,6 +79,10 @@ int main(int argc, char *argv[])
                                              qEnvironmentVariable("PIVISTA_UI_SCREEN"));
     engine.rootContext()->setContextProperty(QStringLiteral("uiWizardStep"),
                                              qEnvironmentVariableIntValue("PIVISTA_UI_WIZARD_STEP"));
+    engine.rootContext()->setContextProperty(QStringLiteral("initialSettingsPage"),
+                                             qEnvironmentVariable("PIVISTA_UI_SETTINGS_PAGE"));
+    engine.rootContext()->setContextProperty(QStringLiteral("initialDetails"),
+                                             qEnvironmentVariable("PIVISTA_UI_APP_DETAILS"));
 
     // Offscreen layout checks can ask for a different viewport. The QML root
     // scales its 1920x1080 design to whatever size the compositor grants, so

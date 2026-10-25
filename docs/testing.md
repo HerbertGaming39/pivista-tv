@@ -43,11 +43,20 @@ tests/run-launcher-tests.sh        # builds and runs both executables via CTest
 
 ### QML loading and rendering (`tests/ui/render_screens.sh`)
 
-`tests/run-launcher-tests.sh` renders 19 offscreen screens and fails on QML
-runtime errors or a missing/wrongly-sized PNG: Home, Apps, Search and Settings
-at 1080p and 720p, plus every first-boot wizard page at 720p and the welcome
-page at 1080p. The wizard override is development-only
+`tests/run-launcher-tests.sh` renders 27 offscreen screens and fails on QML
+runtime errors, a missing/wrongly-sized PNG, or a screen that is blank below the
+header. It covers Home (including the featured banner and rows), Apps, Games,
+Media, Search and Settings at 1080p and 720p, app details at both sizes, the
+appearance page at both sizes, Home at 4K, plus every first-boot wizard page at
+720p and the welcome page at 1080p. The wizard override is development-only
 (`PIVISTA_UI_WIZARD_STEP`); it is not read from device configuration.
+
+The blank-content check exists because the first Media implementation was the
+correct PNG size but its rows had been scrolled out of view by focus restored
+before layout. `tests/ui/screenshot_content.py` decodes the PNG with the Python
+standard library and requires bright pixels below the header, so that class of
+regression now fails the smoke test instead of producing a convincing-looking
+empty screenshot.
 
 A manual render is still useful when inspecting a design change:
 
@@ -66,8 +75,10 @@ falls back to its 800×600 screen. Set `PIVISTA_UI_SCREEN` to `apps`, `search` o
 The web catalog variable is only needed on the host; the image installs the
 catalog at `/usr/share/pivista/webapps/`.
 
-The automated check verifies dimensions and QML errors, not visual taste; review
-the PNGs for spacing and contrast.
+The automated check verifies dimensions, visible content and QML errors, not
+visual taste; review the PNGs for spacing and contrast. A passing render is still
+not evidence of GPU performance or physical-Pi behaviour: the test runs with the
+software Qt Quick backend.
 
 ### Image validation (`tests/image/validate_image.py`)
 

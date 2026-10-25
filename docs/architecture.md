@@ -92,8 +92,10 @@ Chromium or a native app, favourites, settings persistence.
 | Web | `/usr/share/pivista/webapps/catalog.json` + `~/.config/pivista/webapps.json` | Chromium `--app`, `--kiosk`, per-service profile, https only | `web` / `browser-drm-unverified` |
 | Android | none shipped | — | `android.status` reports why |
 
-Launching an app records it in "Continue". Launch failure returns a message; an
-app is never marked supported because its icon appeared.
+Launching an app records it in "Recently opened". This is launch history, not
+playback position: PiVista does not claim resume points without a provider or
+player integration. Launch failure returns a message; an app is never marked
+supported because its icon appeared before it launches.
 
 ## Data and persistence
 
@@ -111,7 +113,8 @@ app is never marked supported because its icon appeared.
 
 - **No A/B updates.** Package updates are transactional at the dpkg level only.
   A broken update requires reflashing. Adding A/B would require a different
-  partition scheme and a signed update service; it is out of scope for 0.1.
+  partition scheme and a signed update service; it is out of scope for this
+  release.
 - **Widevine L3 only.** The CDM is a vendor package, not a certification.
 - **Chromium is the streaming path.** No official native Linux clients exist for
   the major services; browser profiles are the legitimate fallback.

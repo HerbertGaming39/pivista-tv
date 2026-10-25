@@ -5,8 +5,8 @@
 product:
   name: PiVista TV
   slug: pivista-tv
-  version: 0.1.0
-  codename: Aurora
+  version: 0.2.0
+  codename: Borealis
   model: Raspberry Pi 5
   soc: BCM2712
   architecture: arm64
@@ -47,6 +47,6 @@ session:
   service: pivista-session.service
 
 artifacts:
-  image: pivista-tv-0.1.0-pi5-arm64.img.xz
+  image: pivista-tv-0.2.0-pi5-arm64.img.xz
   checksum: sha256
-  manifest: pivista-tv-0.1.0-pi5-arm64.manifest.json
+  manifest: pivista-tv-0.2.0-pi5-arm64.manifest.json

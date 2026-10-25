@@ -275,8 +275,9 @@ There are two separate update paths:
   partition scheme and **no automatic package rollback**; a failed OS update is
   recovered by reflashing a known-good image.
 
-A **0.1.0 card cannot install this updater in place** because that image has no
-update service or public key. It needs one reflash to 0.3.1; from then on the
+A **0.1.0 or 0.2.0 card cannot install this updater in place** because those
+images have no update service or public key. They need one reflash to 0.3.1;
+from then on the
 launcher updater works. Full-image A/B updates (RAUC/`tryboot`) are investigated
 but not implemented, because they need a different partition layout and a
 one-time migration. Read [docs/updates.md](docs/updates.md) for the trust model,

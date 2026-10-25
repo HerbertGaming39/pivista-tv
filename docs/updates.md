@@ -149,16 +149,17 @@ The Settings page also has a manual **Check for launcher updates** action.
 | Roll back | Restores the saved previous launcher; restart required |
 | Allow prerelease updates | Off by default; affects future checks only |
 
-## Upgrade from 0.1.0 (the image already downloaded)
+## Upgrade from 0.1.0 or 0.2.0 (the image already downloaded)
 
-**A 0.1.0 device cannot install this update in place.** The 0.1.0 image does not
-contain `pivistad`'s signed-update actions or the public key, so there is nothing
-on that device to verify or apply an update. This is not a signature problem and
-there is no safe way to inject a privileged updater from the launcher.
+**A 0.1.0 or 0.2.0 device cannot install this update in place.** Neither image
+contains `pivistad`'s signed-update actions or the public key, so there is
+nothing on that device to verify or apply an update. This is not a signature
+problem and there is no safe way to inject a privileged updater from the
+launcher.
 
 The safe migration is a one-time reflash to the 0.3.1 image:
 
-1. Keep the 0.1.0 `.img.xz`; it remains the known-good fallback.
+1. Keep the older `.img.xz`; it remains the known-good fallback.
 2. Download the 0.3.1 image and verify its published SHA-256.
 3. Optionally copy off user data from the card first: `/home/pivista/.config/`
    and `/var/lib/pivista/`.

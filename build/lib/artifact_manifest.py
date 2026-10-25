@@ -67,7 +67,9 @@ def main() -> int:
 
     now = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0)
     commit = git_value(str(project), "rev-parse", "HEAD")
-    dirty = git_value(str(project), "status", "--porcelain")
+    # Ignore the manifest itself: writing it is not a source-tree change.
+    dirty = git_value(str(project), "status", "--porcelain", "--", ".",
+                      ":(exclude)releases/*.manifest.json")
     manifest = {
         "schema": 1,
         "product": env.get("PIVISTA_NAME", "PiVista TV"),

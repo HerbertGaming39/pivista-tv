@@ -6,7 +6,7 @@ because the screen looked plausible once.
 
 ## Before flashing
 
-- [ ] Image: `pivista-tv-0.3.0-pi5-arm64.img.xz` from the v0.3.0 GitHub
+- [ ] Image: `pivista-tv-0.3.1-pi5-arm64.img.xz` from the v0.3.1 GitHub
       release or `releases/` after a local build.
 - [ ] Compare the SHA-256 with the adjacent `.img.xz.sha256` file and the value
       published in the release notes (Windows `Get-FileHash`, Linux
@@ -73,7 +73,7 @@ because the screen looked plausible once.
 
 ## Launcher updates (after installing the first signed update)
 
-The 0.3.0 image is the first image that can install signed launcher updates.
+Images from 0.3.0 onward can install signed launcher updates.
 A 0.1.0 card must be reflashed once; that migration cannot be done in place.
 
 - [ ] Settings → Updates shows **Launcher** and **Image** versions separately.

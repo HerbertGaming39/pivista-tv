@@ -1,6 +1,6 @@
 # PiVista TV — status
 
-Updated: 2026-10-25 · Version 0.3.0 "Cascade" · Build `20261025T172226Z`
+Updated: 2026-10-25 · Version 0.3.1 "Cascade" · Build `20261025T191615Z`
 
 Build host: x86_64 WSL2 (Ubuntu). The image was validated and its launcher was
 rendered from the sealed filesystem under qemu-user. It has **not** been booted
@@ -8,8 +8,9 @@ on a Raspberry Pi 5. No physical Pi was reachable during this build; hardware
 boot, HDMI/audio, Wi-Fi, remote input and a real launcher update therefore
 remain unverified.
 
-The previous 0.1.0 and 0.2.0 artifacts remain under `releases/baseline-*` and
-`releases/pivista-tv-0.2.0-pi5-arm64.img.xz`.
+The previous 0.1.0, 0.2.0 and 0.3.0 artifacts remain under `releases/baseline-*`,
+`releases/pivista-tv-0.2.0-pi5-arm64.img.xz` and
+`releases/pivista-tv-0.3.0-pi5-arm64.img.xz`.
 
 Status vocabulary:
 
@@ -22,7 +23,7 @@ Status vocabulary:
 | **Unsupported** | Deliberately not provided |
 | **Blocked** | Attempted, blocked by an external constraint |
 
-## Update system (0.3.0)
+## Update system (0.3.1)
 
 | Item | Status | Evidence / note |
 |---|---|---|
@@ -54,9 +55,11 @@ Status vocabulary:
 | Linux host (not Android) | Verified | Raspberry Pi OS 2026-10-06, Debian 13, kernel 6.18 |
 | Pi 5-specific configuration | Implemented | `kernel_2712.img`, `bcm2712-rpi-5-b.dtb`, `[pi5]` config section retained |
 | Reproducible dependency pins | Verified | base image SHA-256 verified at build time; 1046 package versions recorded |
-| Flashable image produced | Verified | `releases/pivista-tv-0.3.0-pi5-arm64.img.xz`; SHA-256 recorded |
+| Flashable image produced | Verified | `releases/pivista-tv-0.3.1-pi5-arm64.img.xz`; SHA-256 recorded |
+| Compressed image integrity | Verified | `xz -t` passes; decompressed hash equals the validated work image |
 | Image structure validated | Verified | `tests/image/validate_image.py`: 51/51 checks |
-| Launcher in sealed image | Verified | `pivista-launcher --version` → 0.3.0 in the mounted image under qemu-user |
+| Launcher in sealed image | Verified | `pivista-launcher --version` → 0.3.1 in the mounted image under qemu-user |
+| Published image matches validated rootfs | Verified | `xz -dc` of the release image hashes to the same 8,069,840,896-byte work image that passed 51/51 checks |
 | Sealed-image UI render | Verified | Home 720p/1080p/4K, Apps, Media, Settings and Updates rendered from `/usr/share/pivista/qml` in the mounted image |
 | Signed update metadata in image | Verified | `/usr/share/pivista/version.json` and `/etc/pivista/update-pubkey.pem`, mode 0644 |
 | First-boot root resize | Verified (unit enabled) | vendor `rpi-resize.service` enabled (`systemd-growfs-root`); not exercised on a flashed card |
@@ -68,7 +71,7 @@ Status vocabulary:
 | Shutdown / reboot | Implemented | `pivistad` → `systemctl poweroff/reboot` |
 | Recovery instructions | Verified | [docs/recovery.md](docs/recovery.md) |
 
-## Interface (0.3.0)
+## Interface (0.3.1)
 
 | Item | Status | Evidence / note |
 |---|---|---|
@@ -83,6 +86,7 @@ Status vocabulary:
 | Updates settings and signed-update controls | Verified | Updates page renders at both sizes; check/download/install/postpone/rollback/restart actions wired |
 | Clock, network and system status | Implemented | Header clock/status; daemon status path has unit tests, no live network in the test host |
 | Remote-style navigation | Implemented | Qt focus chain, arrows/Enter/Back/Escape/Home; no physical remote test |
+| First-boot wizard key handling | Verified (offscreen) | Synthetic Down/Up/Enter/Escape/Select/Backspace test; activation and sway map refocus the launcher |
 | Blank-screen regression guard | Verified | `tests/ui/screenshot_content.py` fails a correctly-sized but blank content area |
 | 720p / 1080p / 4K scaling | Verified (offscreen) | 1280×720, 1920×1080 and 3840×2160 renders; not a GPU measurement |
 | First-boot wizard | Verified | 8 wizard steps rendered at 720p, welcome at 1080p |
@@ -115,7 +119,7 @@ Status vocabulary:
 | Clean build instructions | Verified — `build.sh check` |
 | Dependency pinning | Verified — [manifest/base-image.lock](manifest/base-image.lock) |
 | Build logs | Implemented — `build/logs/build-<id>.log` |
-| Automated tests | Verified — 69 host Python tests, 7 launcher/Qt cases, 29 offscreen renders, 51 image checks |
+| Automated tests | Verified — 69 host Python tests, 8 launcher/Qt cases, 29 offscreen renders, 51 image checks |
 | App-update archive reproducibility | Verified — deterministic tar metadata/xz; builder test compares two builds |
 | Image integrity | Verified — SHA-256 matches; `xz -t` passes |
 | Software licence notices | Implemented — `/usr/share/doc` retained in image |
@@ -127,10 +131,10 @@ Status vocabulary:
 
 | Field | Value |
 |---|---|
-| Image | `releases/pivista-tv-0.3.0-pi5-arm64.img.xz` |
-| Size | `1,230,380,528 bytes (1.23 GB / 1.15 GiB compressed)` |
-| SHA-256 | `acc6240773197036a8337948aa355064e3187e233ffd9b2174339b3e57098fb5` |
-| Build ID | `20261025T172226Z` |
+| Image | `releases/pivista-tv-0.3.1-pi5-arm64.img.xz` |
+| Size | `1,233,252,448 bytes (1.23 GB / 1.15 GiB compressed)` |
+| SHA-256 | `4dc319f11004dff4e8bae11f50b85bda009fad042c73a1ef879d1434228e2ab5` |
+| Build ID | `20261025T191615Z` |
 | Packages | 1046 installed (versions in the manifest) |
 | Source state | Image content committed in `6178257`; artifact manifest generated from clean tree `028d1db` after sealing |
 | Hardware test checklist | [docs/hardware-test.md](docs/hardware-test.md) |

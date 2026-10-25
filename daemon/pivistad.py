@@ -40,7 +40,7 @@ from typing import Any, Callable
 
 from pivista_update import UpdateError, UpdateManager
 
-VERSION = "0.3.0"
+VERSION = "0.3.1"
 MAX_MESSAGE = 64 * 1024
 DEFAULT_SOCKET = "/run/pivista/control.sock"
 DEFAULT_CONFIG = "/etc/pivista"

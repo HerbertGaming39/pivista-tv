@@ -16,7 +16,7 @@ messages; recovery is offline access to the card or a reflash.
 4. **Reflash.** This is the supported recovery path:
 
    ```bash
-   xz -dc pivista-tv-0.3.0-pi5-arm64.img.xz | \
+   xz -dc pivista-tv-0.3.1-pi5-arm64.img.xz | \
      sudo dd of=/dev/sdX bs=4M status=progress conv=fsync
    ```
 

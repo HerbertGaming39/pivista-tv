@@ -108,7 +108,7 @@ Mounts the sealed image read-only and checks:
 - launcher version metadata and the installed Ed25519 update public key (not
   group/other writable).
 
-The reference 0.3.0 build reports **51 passed, 0 failed**.
+The reference 0.3.1 build reports **51 passed, 0 failed**.
 
 ```bash
 sudo python3 tests/image/validate_image.py --image /var/tmp/pivista-build/work.img

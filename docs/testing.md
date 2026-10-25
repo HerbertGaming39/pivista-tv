@@ -44,7 +44,9 @@ Qt Test, runs guiless on the host:
   what makes the global Home key return to the launcher;
 - the production home screen moves Up from the featured banner to the header,
   then right through the sections and into Settings, so a remote cannot be
-  trapped between the banner and the first content row.
+  trapped between the banner and the first content row;
+- finishing the first-boot wizard loads Home and puts focus on the featured
+  banner, so unloading the content behind the wizard does not strand input.
 
 ```bash
 tests/run-launcher-tests.sh        # builds and runs all four test executables via CTest

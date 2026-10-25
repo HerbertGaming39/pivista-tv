@@ -20,6 +20,7 @@
 
 namespace {
 constexpr const char *kQmlDir = PIVISTA_QML_DIR;
+constexpr const char *kCatalog = PIVISTA_WEBAPP_CATALOG;
 }
 
 class WizardFocusTest : public QObject
@@ -29,6 +30,7 @@ class WizardFocusTest : public QObject
 private slots:
     void initTestCase();
     void firstBootWizardAcceptsRemoteKeys();
+    void finishingTheWizardActivatesHome();
 
 private:
     // The engine must be destroyed before the context objects it points at.
@@ -113,6 +115,24 @@ void WizardFocusTest::firstBootWizardAcceptsRemoteKeys()
     QTRY_COMPARE(wizard->property("step").toInt(), 0);
 }
 
+void WizardFocusTest::finishingTheWizardActivatesHome()
+{
+    auto *window = qobject_cast<QQuickWindow *>(m_engine.rootObjects().first());
+    QVERIFY(window);
+    auto *wizard = window->findChild<QObject *>(QStringLiteral("wizard"));
+    QVERIFY(wizard);
+
+    // The launcher unloads the home screen while the wizard is visible so the
+    // two cannot fight over active focus.  Finishing must load it again and
+    // put focus on the featured banner without another key press.
+    QVERIFY(QMetaObject::invokeMethod(wizard, "finish", Qt::DirectConnection));
+    QTRY_VERIFY_WITH_TIMEOUT(!wizard->property("visible").toBool(), 5000);
+
+    auto *banner = window->findChild<QQuickItem *>(QStringLiteral("featuredBanner"));
+    QTRY_VERIFY_WITH_TIMEOUT(banner != nullptr, 5000);
+    QTRY_VERIFY_WITH_TIMEOUT(banner->hasActiveFocus(), 5000);
+}
+
 int main(int argc, char *argv[])
 {
     QTemporaryDir config;
@@ -121,7 +141,7 @@ int main(int argc, char *argv[])
     qputenv("XDG_CONFIG_HOME", (config.path() + QStringLiteral("/config")).toUtf8());
     qputenv("XDG_RUNTIME_DIR", (config.path() + QStringLiteral("/run")).toUtf8());
     qputenv("PIVISTA_APPLICATION_DIRS", (config.path() + QStringLiteral("/apps")).toUtf8());
-    qputenv("PIVISTA_WEBAPP_CATALOG", (config.path() + QStringLiteral("/catalog.json")).toUtf8());
+    qputenv("PIVISTA_WEBAPP_CATALOG", QByteArray(kCatalog));
     qputenv("QT_QPA_PLATFORM", "offscreen");
     qputenv("QT_QUICK_BACKEND", "software");
 

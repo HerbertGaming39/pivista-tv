@@ -62,6 +62,7 @@ if(PIVISTA_BUILD_TESTS)
     target_include_directories(pivista-wizard-tests PRIVATE src)
     target_compile_definitions(pivista-wizard-tests PRIVATE
         PIVISTA_QML_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml"
+        PIVISTA_WEBAPP_CATALOG="${CMAKE_CURRENT_SOURCE_DIR}/../applications/web/catalog.json"
     )
     target_link_libraries(pivista-wizard-tests PRIVATE
         Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::Network Qt6::Test

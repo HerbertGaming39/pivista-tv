@@ -125,7 +125,7 @@ EOF
   local secrets
   # Only product-owned paths: the base image legitimately ships the Debian
   # snakeoil TLS key under /etc/ssl/private, which is not a PiVista credential.
-  secrets=$(grep -rIlE '(BEGIN (OPENSSH|RSA|EC) PRIVATE KEY|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{20,})' \
+  secrets=$(grep -rIlE '(BEGIN [A-Z0-9 ]*PRIVATE KEY|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{20,})' \
     "$ROOT_MNT/etc/pivista" "$ROOT_MNT/home" "$ROOT_MNT/root" 2>/dev/null || true)
   [[ -z "$secrets" ]] || die "possible credentials found in image: ${secrets}"
 

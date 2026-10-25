@@ -243,7 +243,7 @@ def check_rootfs(root: Path) -> dict:
 
 def check_secrets(root: Path) -> None:
     patterns = re.compile(
-        r"(BEGIN (OPENSSH|RSA|EC) PRIVATE KEY|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{20,}|"
+        r"(BEGIN [A-Z0-9 ]*PRIVATE KEY|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{20,}|"
         r"WPA-PSK|psk=)[^\n]{8,}",
         re.IGNORECASE,
     )

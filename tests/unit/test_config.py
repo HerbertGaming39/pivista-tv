@@ -102,7 +102,7 @@ class ProductConfigTests(unittest.TestCase):
 
     def test_no_placeholder_credentials_in_tree(self) -> None:
         patterns = re.compile(
-            r"(BEGIN (OPENSSH|RSA|EC) PRIVATE KEY|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{20,})"
+            r"(BEGIN [A-Z0-9 ]*PRIVATE KEY|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{20,})"
         )
         offenders = []
         for path in (ROOT / "system").rglob("*"):

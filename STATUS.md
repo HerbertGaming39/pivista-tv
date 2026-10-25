@@ -27,6 +27,7 @@ Status vocabulary:
 | Item | Status | Evidence / note |
 |---|---|---|
 | Release discovery on GitHub | Verified | Fake-release unit tests; stable/prerelease filtering, drafts ignored |
+| Live discovery of published v0.3.0 | Verified | Real GitHub API check on 2026-10-25; `v0.3.0` found, signed manifest verified with the installed public key, no update offered while installed version matches |
 | Signed manifest verification | Verified | Ed25519 test key; corrupted signature and malformed manifests rejected |
 | Archive integrity | Verified | SHA-256 and exact size checked against the signed manifest; corrupt and interrupted downloads rejected |
 | HTTPS / host restriction | Verified | `https://` required; redirects limited to GitHub hosts |

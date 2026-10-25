@@ -16,6 +16,12 @@ Pure Python, no network, no Raspberry Pi. Covers the daemon and product config;
 - power confirmation and rate limiting;
 - timezone validation against `timedatectl list-timezones`;
 - update check parsing and confirmation requirement;
+- signed launcher updates: release discovery, manifest signature, prerelease
+  opt-in, minimum-version refusal, checksum/corrupt/interrupted downloads,
+  insufficient space, download preservation across checks, archive traversal,
+  wrong architecture, failed swap restoration, rollback, restart recovery and
+  preservation of user/network data;
+- reproducible app-update archive building and manifest signing;
 - display mode validation;
 - honest Android reporting;
 - the global Home script (`home.sh`) connects to the launcher's user-only socket
@@ -43,12 +49,12 @@ tests/run-launcher-tests.sh        # builds and runs both executables via CTest
 
 ### QML loading and rendering (`tests/ui/render_screens.sh`)
 
-`tests/run-launcher-tests.sh` renders 27 offscreen screens and fails on QML
+`tests/run-launcher-tests.sh` renders 29 offscreen screens and fails on QML
 runtime errors, a missing/wrongly-sized PNG, or a screen that is blank below the
 header. It covers Home (including the featured banner and rows), Apps, Games,
 Media, Search and Settings at 1080p and 720p, app details at both sizes, the
-appearance page at both sizes, Home at 4K, plus every first-boot wizard page at
-720p and the welcome page at 1080p. The wizard override is development-only
+appearance and updates pages at both sizes, Home at 4K, plus every first-boot
+wizard page at 720p and the welcome page at 1080p. The wizard override is development-only
 (`PIVISTA_UI_WIZARD_STEP`); it is not read from device configuration.
 
 The blank-content check exists because the first Media implementation was the
@@ -98,9 +104,11 @@ Mounts the sealed image read-only and checks:
   user data (`/etc/pivista`, `/etc/NetworkManager/system-connections`,
   `/home`, `/root`);
 - aarch64 launcher and kernel (the gzip-compressed `kernel_2712.img` is
-  decompressed before `file` inspects it).
+  decompressed before `file` inspects it);
+- launcher version metadata and the installed Ed25519 update public key (not
+  group/other writable).
 
-The reference build reports **46 passed, 0 failed**.
+The reference 0.3.0 build reports **51 passed, 0 failed**.
 
 ```bash
 sudo python3 tests/image/validate_image.py --image /var/tmp/pivista-build/work.img
@@ -120,7 +128,7 @@ prove that it boots.
 | DRM playback | no accounts + no hardware | `docs/streaming.md` |
 | H.264/HEVC decode | no Pi, no stream | `docs/streaming.md` |
 | HDMI-CEC | no CEC hardware | `STATUS.md` |
-| Update rollback | not implemented | `docs/recovery.md` |
+| Physical launcher update | no Pi/network/television | `docs/hardware-test.md` |
 
 ## Regression discipline
 

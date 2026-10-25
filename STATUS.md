@@ -1,23 +1,50 @@
 # PiVista TV — status
 
-Updated: 2026-10-25 · Version 0.2.0 "Borealis" · Build `20261025T153658Z`
+Updated: 2026-10-25 · Version 0.3.0 "Cascade" · Build `20261025T172226Z`
+
 Build host: x86_64 WSL2 (Ubuntu). The image was validated and its launcher was
 rendered from the sealed filesystem under qemu-user. It has **not** been booted
-on a Raspberry Pi 5: the physical Pi previously used for the streaming probe was
-unreachable over SSH (`No route to host`) during this build.
+on a Raspberry Pi 5. No physical Pi was reachable during this build; hardware
+boot, HDMI/audio, Wi-Fi, remote input and a real launcher update therefore
+remain unverified.
 
-The previous 0.1.0 artifacts remain under `releases/baseline-0.1.0-*/`.
+The previous 0.1.0 and 0.2.0 artifacts remain under `releases/baseline-*` and
+`releases/pivista-tv-0.2.0-pi5-arm64.img.xz`.
 
 Status vocabulary:
 
 | Term | Meaning |
 |---|---|
-| **Verified** | Exercised by an automated test or observed operation recorded in this repo |
+| **Verified** | Exercised by an automated test or an operation recorded in this repo |
 | **Implemented** | Code exists and is wired up, but was not exercised end-to-end |
 | **Hardware-dependent** | Cannot be verified without a physical Pi 5 / television / account |
 | **Experimental** | Enabled but known incomplete |
 | **Unsupported** | Deliberately not provided |
 | **Blocked** | Attempted, blocked by an external constraint |
+
+## Update system (0.3.0)
+
+| Item | Status | Evidence / note |
+|---|---|---|
+| Release discovery on GitHub | Verified | Fake-release unit tests; stable/prerelease filtering, drafts ignored |
+| Signed manifest verification | Verified | Ed25519 test key; corrupted signature and malformed manifests rejected |
+| Archive integrity | Verified | SHA-256 and exact size checked against the signed manifest; corrupt and interrupted downloads rejected |
+| HTTPS / host restriction | Verified | `https://` required; redirects limited to GitHub hosts |
+| Prerelease opt-in | Verified | Disabled by default; explicit Settings preference |
+| Minimum version / image compatibility | Verified | Incompatible release is displayed but not offered |
+| Downgrade prevention | Verified | Only a version newer than the installed one can be downloaded/installed |
+| Archive path restriction | Verified | Fixed paths only; traversal, symlinks, devices and unexpected files rejected |
+| Atomic staged install | Verified (host) | Local temp filesystem; backup and rename-based swap |
+| Rollback | Verified (host) | Previous launcher restored; Settings action |
+| Interrupted-job recovery | Verified (host) | Active job becomes failed after daemon restart; no permanent spinner |
+| User/network data preservation | Verified (host) | Install test leaves launcher config and NetworkManager keyfile untouched |
+| Settings update UI | Verified (offscreen) | Updates page rendered at 720p and 1080p; no QML errors |
+| Periodic background check | Implemented | Read-only check at 60 s and every 6 h; never auto-installs |
+| Restart without interrupting playback | Implemented | Install does not kill the launcher; restart is confirmed separately |
+| Launcher update on a real Pi | **Hardware-dependent** | No physical boot or live network/download test |
+| Full-image A/B / RAUC | **Unsupported** | Investigated in [docs/updates.md](docs/updates.md); needs a new partition layout and migration |
+| In-place upgrade from 0.1.0 | **Unsupported** | 0.1.0 has no updater/public key; one-time reflash required |
+| Automatic package rollback | **Unsupported** | apt path remains single-slot; reflash on failure |
 
 ## Operating system
 
@@ -26,20 +53,21 @@ Status vocabulary:
 | Linux host (not Android) | Verified | Raspberry Pi OS 2026-10-06, Debian 13, kernel 6.18 |
 | Pi 5-specific configuration | Implemented | `kernel_2712.img`, `bcm2712-rpi-5-b.dtb`, `[pi5]` config section retained |
 | Reproducible dependency pins | Verified | base image SHA-256 verified at build time; 1046 package versions recorded |
-| Flashable image produced | Verified | `releases/pivista-tv-0.2.0-pi5-arm64.img.xz`, 1.23 GB, SHA-256 recorded |
-| Image structure validated | Verified | `tests/image/validate_image.py`: 46/46 checks |
-| Launcher in sealed image | Verified | `pivista-launcher --version` → 0.2.0 in the mounted image under qemu-user |
-| Sealed-image UI render | Verified | Home 720p/1080p, Apps, Media and Settings rendered from `/usr/share/pivista/qml` in the mounted image |
+| Flashable image produced | Verified | `releases/pivista-tv-0.3.0-pi5-arm64.img.xz`; SHA-256 recorded |
+| Image structure validated | Verified | `tests/image/validate_image.py`: 51/51 checks |
+| Launcher in sealed image | Verified | `pivista-launcher --version` → 0.3.0 in the mounted image under qemu-user |
+| Sealed-image UI render | Verified | Home 720p/1080p/4K, Apps, Media, Settings and Updates rendered from `/usr/share/pivista/qml` in the mounted image |
+| Signed update metadata in image | Verified | `/usr/share/pivista/version.json` and `/etc/pivista/update-pubkey.pem`, mode 0644 |
 | First-boot root resize | Verified (unit enabled) | vendor `rpi-resize.service` enabled (`systemd-growfs-root`); not exercised on a flashed card |
 | Vendor first-boot helpers disabled | Verified | `userconfig.service` and `sshswitch.service` masked |
 | cloud-init cannot recreate `pi` | Verified | cloud-init units masked, `/etc/cloud/cloud-init.disabled` present, seed files removed |
 | SSH host-key regeneration disabled | Verified | `regenerate_ssh_host_keys.service` masked; `/etc/ssh` absent |
 | Boot on physical Pi 5 | **Blocked** | No hardware reachable during this build |
-| Persistent user settings | Verified | `~/.config/PiVista/Launcher.conf` (Qt Settings) |
+| Persistent user settings | Verified | `~/.config/PiVista/Launcher.conf` (Qt Settings); update test proves it is untouched |
 | Shutdown / reboot | Implemented | `pivistad` → `systemctl poweroff/reboot` |
 | Recovery instructions | Verified | [docs/recovery.md](docs/recovery.md) |
 
-## Interface (0.2.0)
+## Interface (0.3.0)
 
 | Item | Status | Evidence / note |
 |---|---|---|
@@ -51,6 +79,7 @@ Status vocabulary:
 | App details sheet | Verified | 720p and 1080p renders; favourite, hide, launch and close actions |
 | Installed vs web shortcut separation | Verified | Catalog carries `kind`, `installed` and `web`; tests cover both maps |
 | Appearance settings | Verified | Theme, wallpaper, row visibility, start screen and 12/24-hour clock persisted and rendered |
+| Updates settings and signed-update controls | Verified | Updates page renders at both sizes; check/download/install/postpone/rollback/restart actions wired |
 | Clock, network and system status | Implemented | Header clock/status; daemon status path has unit tests, no live network in the test host |
 | Remote-style navigation | Implemented | Qt focus chain, arrows/Enter/Back/Escape/Home; no physical remote test |
 | Blank-screen regression guard | Verified | `tests/ui/screenshot_content.py` fails a correctly-sized but blank content area |
@@ -85,10 +114,11 @@ Status vocabulary:
 | Clean build instructions | Verified — `build.sh check` |
 | Dependency pinning | Verified — [manifest/base-image.lock](manifest/base-image.lock) |
 | Build logs | Implemented — `build/logs/build-<id>.log` |
-| Automated tests | Verified — 38 host Python tests, 6 launcher/Qt cases, 27 offscreen renders and 46 image checks |
+| Automated tests | Verified — 69 host Python tests, 7 launcher/Qt cases, 29 offscreen renders, 51 image checks |
+| App-update archive reproducibility | Verified — deterministic tar metadata/xz; builder test compares two builds |
 | Image integrity | Verified — SHA-256 matches; `xz -t` passes |
 | Software licence notices | Implemented — `/usr/share/doc` retained in image |
-| Update and recovery documentation | Verified — [docs/recovery.md](docs/recovery.md) |
+| Update and recovery documentation | Verified — [docs/updates.md](docs/updates.md), [docs/recovery.md](docs/recovery.md) |
 | Known limitations listed | Verified — this file and README |
 | No credentials in release artifact | Verified — build-time scan + image validation |
 
@@ -96,17 +126,18 @@ Status vocabulary:
 
 | Field | Value |
 |---|---|
-| Image | `releases/pivista-tv-0.2.0-pi5-arm64.img.xz` |
-| Size | 1,230,308,476 bytes (1.23 GB / 1.15 GiB compressed) |
-| SHA-256 | `02445ff9d2056941a77b02694fccc5f9f7979056fb2bfca8e043347f3ba5f1b4` |
-| Build ID | `20261025T153658Z` |
+| Image | `releases/pivista-tv-0.3.0-pi5-arm64.img.xz` |
+| Size | `1,230,380,528 bytes (1.23 GB / 1.15 GiB compressed)` |
+| SHA-256 | `acc6240773197036a8337948aa355064e3187e233ffd9b2174339b3e57098fb5` |
+| Build ID | `20261025T172226Z` |
 | Packages | 1046 installed (versions in the manifest) |
-| Source state | Built from source commit `f4ea16b`; only generated release metadata changed after sealing |
+| Source state | Built from source commit `SOURCE_COMMIT`; generated release metadata only after sealing |
 | Hardware test checklist | [docs/hardware-test.md](docs/hardware-test.md) |
 
 ## What is deliberately absent
 
-- A signed update channel and rollback (would need infrastructure).
+- Full-image A/B updates and automatic rollback for OS packages. The signed
+  launcher channel is separate and implemented; the base image is not.
 - Widevine L1 / provider certification.
 - Google Play services, Android runtime, APK installation.
 - Bluetooth pairing UI.
@@ -116,10 +147,13 @@ Status vocabulary:
 
 1. Follow `docs/hardware-test.md` on a real Pi 5: checksum, flash, first boot,
    wizard, Home/Apps/Games/Media/Settings, HDMI audio and mode switching.
-2. Measure cold boot to launcher, launcher start time, idle CPU and memory;
+2. Test the signed launcher update on hardware: check, download, install,
+   restart, rollback, network loss, corrupted archive and power loss during
+   install. Record the exact versions.
+3. Measure cold boot to launcher, launcher start time, idle CPU and memory;
    record in `docs/hardware.md`.
-3. Test Netflix/Disney+/YouTube/Polish service sign-in and playback with a real
+4. Test Netflix/Disney+/YouTube/Polish service sign-in and playback with a real
    account, recording the observed resolution and decoder.
-4. Test Wi-Fi association with a remote-only setup, including a wrong password.
-5. Test the global Home key while Chromium and a native app are running.
-6. Test a USB/IR remote and record which buttons emit which key codes.
+5. Test Wi-Fi association with a remote-only setup, including a wrong password.
+6. Test the global Home key while Chromium and a native app are running.
+7. Test a USB/IR remote and record which buttons emit which key codes.

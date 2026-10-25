@@ -12,6 +12,7 @@ stage_30_overlay() {
   chmod 0644 "$ROOT_MNT/etc/pam.d/pivista" \
               "$ROOT_MNT/etc/pivista/session.conf" \
               "$ROOT_MNT/etc/pivista/input.map" \
+              "$ROOT_MNT/etc/pivista/update-pubkey.pem" \
               "$ROOT_MNT/etc/pivista/sway/config" \
               "$ROOT_MNT/etc/systemd/system/pivista-session.service" \
               "$ROOT_MNT/etc/systemd/system/pivista-daemon.service" \
@@ -40,6 +41,7 @@ stage_30_overlay() {
   step "Installing daemon"
   install -d -m 0755 "$ROOT_MNT/usr/lib/pivista"
   install -m 0755 "${PROJECT_DIR}/daemon/pivistad.py" "$ROOT_MNT${PIVISTA_DAEMON}"
+  install -m 0644 "${PROJECT_DIR}/daemon/pivista_update.py" "$ROOT_MNT/usr/lib/pivista/pivista_update.py"
 
   step "Rendering product configuration"
   install -d -m 0755 "$ROOT_MNT${PIVISTA_CONFIG}" "$ROOT_MNT${PIVISTA_STATE}"
@@ -65,6 +67,24 @@ with open(path, "w", encoding="utf-8") as fh:
     json.dump(info, fh, indent=2, sort_keys=True)
     fh.write("\n")
 os.chmod(path, 0o644)
+
+# The launcher-application version is deliberately separate from the image
+# build identity. Signed application updates replace this small file; the
+# image version in /etc/pivista/build-info.json only changes on a reflash.
+app_info = {
+    "schema": 1,
+    "product": "pivista-tv",
+    "version": os.environ["PIVISTA_VERSION"],
+    "codename": os.environ["PIVISTA_CODENAME"],
+    "build_id": os.environ["PIVISTA_BUILD_ID"],
+    "architecture": os.environ["PIVISTA_ARCH"],
+}
+app_path = os.path.join(root, "usr/share/pivista/version.json")
+os.makedirs(os.path.dirname(app_path), exist_ok=True)
+with open(app_path, "w", encoding="utf-8") as fh:
+    json.dump(app_info, fh, indent=2, sort_keys=True)
+    fh.write("\n")
+os.chmod(app_path, 0o644)
 PY
 
   step "Creating the ${PIVISTA_USER} account"

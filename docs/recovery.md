@@ -16,7 +16,7 @@ messages; recovery is offline access to the card or a reflash.
 4. **Reflash.** This is the supported recovery path:
 
    ```bash
-   xz -dc pivista-tv-0.2.0-pi5-arm64.img.xz | \
+   xz -dc pivista-tv-0.3.0-pi5-arm64.img.xz | \
      sudo dd of=/dev/sdX bs=4M status=progress conv=fsync
    ```
 
@@ -114,6 +114,35 @@ There is **no automatic rollback**. The system may be left partially updated.
 
 To copy data before reflashing, mount the card on a Linux computer and copy
 `/home/pivista/.config/` and `/var/lib/pivista/`.
+
+## A launcher update failed
+
+Launcher updates are independent of apt and have their own rollback copy. The
+update is only offered after its signed manifest and archive checksum verify.
+
+- **Download failed or was interrupted:** the `.part` file is removed and the
+  installed launcher is untouched. Retry from **Settings → Updates**.
+- **Install failed:** the updater restores the backup automatically and reports
+  the error. If the launcher still starts, open **Settings → Updates** and use
+  **Roll back to previous launcher** if a backup is listed.
+- **Power was lost during install:** `pivistad` marks the interrupted job as
+  failed on next start. Check the displayed launcher version. If it is the old
+  version, retry. If it is the new version and the UI starts, no action is
+  needed; the previous launcher backup remains available for rollback.
+- **The launcher will not start after an update:** use the physical recovery
+  path below or mount the card. The backup copy is under
+  `/var/lib/pivista/updates/rollback/`; its `backup.json` names the version.
+  Restore `launcher`, `qml/`, `catalog.json` and `version.json` to
+  `/usr/bin/pivista-launcher`, `/usr/share/pivista/qml`,
+  `/usr/share/pivista/webapps/catalog.json` and
+  `/usr/share/pivista/version.json`, then reboot. This is a manual root-level
+  operation; keep the card offline while doing it.
+- **The update is offered but the UI says the image is too old:** the launcher
+  update requires a newer system image. Back up user data and reflash the image;
+  the updater deliberately refuses to install across an incompatible base.
+
+Do not delete `/var/lib/pivista/updates/rollback/` while diagnosing a failed
+launcher update. It is not user data; it is the last known-good application.
 
 ## Factory reset
 

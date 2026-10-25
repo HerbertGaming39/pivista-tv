@@ -17,6 +17,7 @@ Item {
     property var sysStatus: ({})
     property var update: ({})
     property var updateCheck: ({})
+    property var appUpdate: ({"installed": "", "available": false, "job": {"state": "idle"}})
     property var android: ({})
     property bool showLogs: false
     property string logsText: ""
@@ -139,6 +140,141 @@ Item {
         api("update.status", {}, function (data) { update = data })
     }
 
+    function loadAppUpdate() {
+        api("app.update.status", {}, function (data) { appUpdate = data })
+    }
+
+    function checkAppUpdate() {
+        flash("Checking GitHub for a signed PiVista release…", false)
+        api("app.update.check", { allow_prerelease: AppSettings.appPrerelease }, function (data) {
+            appUpdate = data
+            if (data.available)
+                flash("PiVista " + data.latest + " is available", false)
+            else if (data.reason)
+                flash(data.reason, true)
+            else
+                flash("PiVista " + data.installed + " is up to date", false)
+        }, 60000, function (message) { flash(message, true) })
+    }
+
+    function downloadAppUpdate() {
+        api("app.update.download", {
+            confirm: true,
+            version: appUpdate.latest,
+            allow_prerelease: AppSettings.appPrerelease
+        }, function () {
+            flash("Downloading PiVista " + appUpdate.latest + "…", false)
+            loadAppUpdate()
+        }, 30000, function (message) { flash(message, true); loadAppUpdate() })
+    }
+
+    function installAppUpdate() {
+        askConfirm("Install PiVista " + appUpdate.latest,
+            "The signed launcher will replace the current one. Settings, favourites, apps and network configuration are preserved. Playback is not interrupted now; restart the launcher when you are ready.",
+            "Install", false, function () {
+                api("app.update.install", { confirm: true }, function () {
+                    flash("Installing launcher update…", false)
+                    loadAppUpdate()
+                }, 30000, function (message) { flash(message, true); loadAppUpdate() })
+            })
+    }
+
+    function postponeAppUpdate() {
+        api("app.update.postpone", { version: appUpdate.latest }, function (data) {
+            appUpdate = data
+            flash("Update postponed", false)
+        }, 15000, function (message) { flash(message, true) })
+    }
+
+    function rollbackAppUpdate() {
+        askConfirm("Roll back launcher",
+            "Restore the launcher that was installed before the last update. User settings and app data are not changed. The launcher must restart afterwards.",
+            "Roll back", true, function () {
+                api("app.update.rollback", { confirm: true }, function (data) {
+                    appUpdate = data
+                    flash("Previous launcher restored; restart to use it", false)
+                }, 30000, function (message) { flash(message, true); loadAppUpdate() })
+            })
+    }
+
+    function restartLauncher() {
+        askConfirm("Restart launcher",
+            "The launcher will restart now. Any video or application opened from PiVista TV will be closed.",
+            "Restart now", true, function () {
+                api("app.update.restart", { confirm: true }, function () {
+                    flash("Restarting the launcher…", false)
+                }, 15000, function (message) { flash(message, true) })
+            })
+    }
+
+    function appUpdateActionItems() {
+        const job = appUpdate.job || ({})
+        const state = job.state || "idle"
+        const list = [{ id: "check", label: "Check for launcher updates", detail: "official GitHub release" }]
+        if (appUpdate.available) {
+            if (state === "downloaded" || state === "installed")
+                list.push({ id: "install", label: "Install PiVista " + appUpdate.latest, detail: "signed and reversible" })
+            else if (state === "downloading")
+                list.push({ id: "download", label: "Downloading… " + (job.progress || 0) + "%", detail: fmtBytes(job.downloaded) + " of " + fmtBytes(appUpdate.size) })
+            else
+                list.push({ id: "download", label: "Download PiVista " + appUpdate.latest, detail: fmtBytes(appUpdate.size) })
+            list.push({ id: "postpone", label: "Postpone this update", detail: "remind me later" })
+        }
+        if (job.restart_required === true)
+            list.push({ id: "restart", label: "Restart launcher to finish", detail: "closes running apps" })
+        if (appUpdate.rollback_available)
+            list.push({ id: "rollback", label: "Roll back to previous launcher", detail: appUpdate.rollback_version || "last good version" })
+        list.push({
+            id: "prerelease",
+            label: (AppSettings.appPrerelease ? "Disable" : "Allow") + " prerelease updates",
+            detail: AppSettings.appPrerelease ? "enabled" : "stable only"
+        })
+        list.push({ id: "packages_check", label: "Check system packages", detail: "Debian apt" })
+        list.push({ id: "packages_install", label: "Install system packages", detail: "reboot may be required" })
+        list.push({ id: "log", label: showLogs ? "Hide update log" : "Show update log", detail: "" })
+        return list
+    }
+
+    function handleAppUpdateAction(index) {
+        const item = appUpdateActionItems()[index]
+        if (!item) return
+        if (item.id === "check") {
+            checkAppUpdate()
+        } else if (item.id === "download") {
+            downloadAppUpdate()
+        } else if (item.id === "install") {
+            installAppUpdate()
+        } else if (item.id === "postpone") {
+            postponeAppUpdate()
+        } else if (item.id === "restart") {
+            restartLauncher()
+        } else if (item.id === "rollback") {
+            rollbackAppUpdate()
+        } else if (item.id === "prerelease") {
+            AppSettings.appPrerelease = !AppSettings.appPrerelease
+            flash(AppSettings.appPrerelease ? "Prerelease updates enabled" : "Only stable releases will be offered", false)
+            appUpdate = ({"installed": appUpdate.installed, "available": false, "job": {"state": "idle"}})
+        } else if (item.id === "packages_check") {
+            flash("Checking Debian package updates…", false)
+            api("update.check", {}, function (data) {
+                updateCheck = data
+                flash(data.available + " package updates available", false)
+            }, 240000, function (message) { flash(message, true) })
+        } else if (item.id === "packages_install") {
+            askConfirm("Install system packages",
+                "Debian package updates do not have automatic A/B rollback. Do not power off. The launcher update above is separate and keeps its own rollback copy.",
+                "Install", true, function () {
+                    api("update.apply", { confirm: true }, function () {
+                        flash("System package update started", false)
+                        loadUpdate()
+                    }, 30000, function (message) { flash(message, true) })
+                })
+        } else if (item.id === "log") {
+            showLogs = !showLogs
+            loadUpdateHistory()
+        }
+    }
+
     function loadAndroid() {
         api("android.status", {}, function (data) { android = data })
     }
@@ -148,8 +284,9 @@ Item {
         else if (page === "display") loadDisplay()
         else if (page === "audio") loadAudio()
         else if (page === "system") loadSystem()
-        else if (page === "updates") { loadUpdate(); loadUpdateHistory() }
+        else if (page === "updates") { loadUpdate(); loadAppUpdate(); loadUpdateHistory() }
         else if (page === "privacy") { loadAndroid() }
+        else if (page === "about") { loadSystem(); loadAppUpdate() }
     }
 
     function openPage(id) {
@@ -244,6 +381,13 @@ Item {
         repeat: true
         running: settings.update && settings.update.state === "running"
         onTriggered: settings.loadUpdate()
+    }
+
+    Timer {
+        interval: 1000
+        repeat: true
+        running: settings.appUpdate.job && (settings.appUpdate.job.state === "downloading" || settings.appUpdate.job.state === "installing")
+        onTriggered: settings.loadAppUpdate()
     }
 
     // ---------------------------------------------------------------- root
@@ -827,62 +971,88 @@ Item {
 
         Column {
             anchors.fill: parent
-            spacing: Theme.s(10)
+            spacing: Theme.s(6)
 
             Text { text: "Updates"; color: Theme.text; font.family: Theme.fontFamily; font.pixelSize: Theme.s(26); font.weight: Font.DemiBold }
             Text {
                 width: parent.width
-                text: "Updates use Debian packages from the sources pinned in this image. There is no A/B rollback: if an update fails, reflash a known-good image. This is documented in docs/recovery.md."
+                text: "Launcher updates are signed, verified and can be rolled back without touching your settings. Debian package updates are separate and have no A/B rollback; a failed system update may require reflashing (docs/recovery.md)."
                 color: Theme.warn
                 font.family: Theme.fontFamily
-                font.pixelSize: Theme.s(13)
+                font.pixelSize: Theme.s(12)
                 wrapMode: Text.WordWrap
             }
-            InfoLine { width: parent.width; label: "State"; value: settings.update.state || "idle" }
-            InfoLine { width: parent.width; label: "Available"; value: settings.updateCheck.available !== undefined ? settings.updateCheck.available + " packages" : "not checked" }
+            InfoLine { width: parent.width; label: "Launcher"; value: (settings.appUpdate.installed || "unknown") + (settings.appUpdate.available === true && settings.appUpdate.latest ? "  →  " + settings.appUpdate.latest : " (installed)") }
+            InfoLine { width: parent.width; label: "Last checked"; value: settings.appUpdate.checked_at || "not checked" }
+            InfoLine { width: parent.width; label: "Update state"; value: (settings.appUpdate.job && settings.appUpdate.job.message) ? settings.appUpdate.job.message : "idle" }
+            InfoLine { width: parent.width; label: "Download"; value: settings.appUpdate.size ? settings.fmtBytes(settings.appUpdate.size) + " · SHA-256 verified" : "—" }
+            InfoLine { width: parent.width; label: "System packages"; value: settings.update.state === "running" ? "installing…" : (settings.updateCheck.available !== undefined ? settings.updateCheck.available + " available" : "not checked") }
+
+            Text {
+                visible: settings.appUpdate.available === true && (settings.appUpdate.notes || "").length > 0
+                width: parent.width
+                height: visible ? Theme.s(54) : 0
+                text: settings.appUpdate.available ? settings.appUpdate.notes : ""
+                color: Theme.textDim
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.s(12)
+                wrapMode: Text.WordWrap
+                maximumLineCount: 3
+                elide: Text.ElideRight
+                clip: true
+            }
+
+            Text {
+                visible: (settings.appUpdate.reason || "").length > 0 && settings.appUpdate.available !== true
+                width: parent.width
+                text: settings.appUpdate.reason || ""
+                color: Theme.danger
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.s(12)
+                wrapMode: Text.WordWrap
+            }
+
+            Rectangle {
+                visible: settings.appUpdate.job && (settings.appUpdate.job.state === "downloading" || settings.appUpdate.job.state === "installing")
+                width: parent.width
+                height: Theme.s(8)
+                radius: Theme.s(4)
+                color: Theme.surfaceHigh
+
+                Rectangle {
+                    width: parent.width * Math.min(100, Math.max(0, (settings.appUpdate.job.progress || 0))) / 100
+                    height: parent.height
+                    radius: parent.radius
+                    color: Theme.accent
+                }
+            }
+
+            Text {
+                visible: settings.appUpdate.job && settings.appUpdate.job.state === "failed"
+                width: parent.width
+                text: "Update error: " + ((settings.appUpdate.job && settings.appUpdate.job.error) || "unknown error")
+                color: Theme.danger
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.s(12)
+                wrapMode: Text.WordWrap
+            }
 
             ActionList {
                 id: updateActions
                 width: parent.width
-                actions: [
-                    { label: "Check for updates", detail: "network required" },
-                    { label: "Install updates", detail: "experimental" },
-                    { label: settings.showLogs ? "Hide update log" : "Show update log", detail: "" },
-                    { label: "Refresh status", detail: "" }
-                ]
-                onTriggered: function (index) {
-                    if (index === 0) {
-                        settings.flash("Checking for updates…", false)
-                        settings.api("update.check", {}, function (data) {
-                            settings.updateCheck = data
-                            settings.flash(data.available + " updates available", false)
-                        }, 240000, function (m) { settings.flash(m, true) })
-                    } else if (index === 1) {
-                        settings.askConfirm("Install updates",
-                            "The system will download and install package updates. Do not power off. There is no automatic rollback.",
-                            "Install", true, function () {
-                                settings.api("update.apply", { confirm: true }, function () {
-                                    settings.flash("Update started", false)
-                                    settings.loadUpdate()
-                                }, 30000, function (m) { settings.flash(m, true) })
-                            })
-                    } else if (index === 2) {
-                        settings.showLogs = !settings.showLogs
-                        settings.loadUpdateHistory()
-                    } else {
-                        settings.loadUpdate()
-                    }
-                }
+                height: Math.min(Theme.s(382), implicitHeight)
+                actions: settings.appUpdateActionItems()
+                onTriggered: function (index) { settings.handleAppUpdateAction(index) }
             }
 
             Text {
                 visible: settings.showLogs
                 width: parent.width
-                height: Theme.s(170)
+                height: Theme.s(120)
                 text: settings.formatLogTail(settings.logsText)
                 color: Theme.textDim
                 font.family: "monospace"
-                font.pixelSize: Theme.s(11)
+                font.pixelSize: Theme.s(10)
                 wrapMode: Text.WrapAnywhere
                 clip: true
             }
@@ -959,7 +1129,8 @@ Item {
             spacing: Theme.s(10)
 
             Text { text: "About PiVista TV"; color: Theme.text; font.family: Theme.fontFamily; font.pixelSize: Theme.s(26); font.weight: Font.DemiBold }
-            InfoLine { width: parent.width; label: "Version"; value: (settings.sysInfo.version || "0.2.0") + " “" + (settings.sysInfo.codename || "Borealis") + "”" }
+            InfoLine { width: parent.width; label: "Launcher"; value: (settings.appUpdate.installed || settings.sysInfo.app_version || "unknown") }
+            InfoLine { width: parent.width; label: "Image"; value: (settings.sysInfo.version || "—") + " “" + (settings.sysInfo.codename || "—") + "”" }
             InfoLine { width: parent.width; label: "Build"; value: settings.sysInfo.build_id || "development" }
             InfoLine { width: parent.width; label: "Model"; value: settings.sysInfo.model || "Raspberry Pi 5" }
             InfoLine { width: parent.width; label: "Kernel"; value: settings.sysInfo.kernel || "—" }

@@ -38,7 +38,9 @@ import traceback
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
-VERSION = "0.2.0"
+from pivista_update import UpdateError, UpdateManager
+
+VERSION = "0.3.0"
 MAX_MESSAGE = 64 * 1024
 DEFAULT_SOCKET = "/run/pivista/control.sock"
 DEFAULT_CONFIG = "/etc/pivista"
@@ -128,6 +130,7 @@ class ServiceContext:
     log_dir: str = DEFAULT_LOG_DIR
     session_uid: int = SESSION_UID
     session_group: str = SESSION_GROUP
+    update_public_key: str = "/etc/pivista/update-pubkey.pem"
     clock: Callable[[], float] = time.time
 
 
@@ -140,6 +143,14 @@ class ControlService:
         self._last_power: float = 0.0
         self._update_lock = threading.Lock()
         self._update_job: dict[str, Any] = {"state": "idle"}
+        self._app_updates = UpdateManager(
+            root="/",
+            state_dir=self.ctx.state_dir,
+            config_dir=self.ctx.config_dir,
+            public_key=self.ctx.update_public_key,
+            runner=self.ctx.runner,
+            clock=self.ctx.clock,
+        )
         self._handlers: dict[str, Callable[[dict], dict]] = {
             "ping": self.ping,
             "system.info": self.system_info,
@@ -165,6 +176,13 @@ class ControlService:
             "update.check": self.update_check,
             "update.apply": self.update_apply,
             "update.history": self.update_history,
+            "app.update.status": self.app_update_status,
+            "app.update.check": self.app_update_check,
+            "app.update.download": self.app_update_download,
+            "app.update.install": self.app_update_install,
+            "app.update.postpone": self.app_update_postpone,
+            "app.update.rollback": self.app_update_rollback,
+            "app.update.restart": self.app_update_restart,
             "android.status": self.android_status,
             "diagnostics.export": self.diagnostics_export,
             "logs.tail": self.logs_tail,
@@ -227,9 +245,14 @@ class ControlService:
                 k, v = line.split("=", 1)
                 release[k] = v.strip('"')
         mem_total, mem_avail = self._memory()
+        try:
+            app_version = self._app_updates.installed_version()
+        except UpdateError:
+            app_version = info.get("version", "unknown")
         return {
             "product": info.get("product", self._config_value("PIVISTA_PRODUCT_NAME", "PiVista TV")),
             "version": info.get("version", self._config_value("PIVISTA_VERSION", "unknown")),
+            "app_version": app_version,
             "codename": info.get("codename", ""),
             "build_id": info.get("build_id", ""),
             "model": read_text("/proc/device-tree/model", "") or info.get("model", ""),
@@ -302,6 +325,7 @@ class ControlService:
             "audio": self._audio_summary(),
             "display": self._display_summary(),
             "update": self.update_status({}),
+            "app_update": self.app_update_status({}),
         }
 
     # -- network ----------------------------------------------------------
@@ -710,6 +734,55 @@ class ControlService:
                 lines = fh.readlines()[-80:]
             tail = "".join(lines)
         return {"log_tail": tail, "log_path": path}
+
+    # -- signed launcher updates ------------------------------------------
+    # These replace only the launcher application. The OS remains on apt, and
+    # a complete image still requires reflashing until an A/B layout exists.
+    def _app_update(self, call: Callable[[], dict]) -> dict:
+        try:
+            return call()
+        except UpdateError as exc:
+            raise ActionError(exc.code, exc.message) from None
+
+    def app_update_status(self, _params: dict) -> dict:
+        return self._app_update(self._app_updates.status)
+
+    def app_update_check(self, params: dict) -> dict:
+        allow = params.get("allow_prerelease") is True
+        return self._app_update(lambda: self._app_updates.check(allow))
+
+    def app_update_download(self, params: dict) -> dict:
+        if params.get("confirm") is not True:
+            raise ActionError("confirmation_required", "downloading an update requires confirm=true")
+        version = params.get("version")
+        if version is not None and not isinstance(version, str):
+            raise ActionError("invalid_version", "version must be a string")
+        allow = params.get("allow_prerelease") is True
+        return self._app_update(lambda: self._app_updates.start_download(
+            version=version, allow_prerelease=allow))
+
+    def app_update_install(self, params: dict) -> dict:
+        if params.get("confirm") is not True:
+            raise ActionError("confirmation_required", "installing an update requires confirm=true")
+        return self._app_update(self._app_updates.start_install)
+
+    def app_update_postpone(self, params: dict) -> dict:
+        version = params.get("version")
+        if not isinstance(version, str):
+            raise ActionError("invalid_version", "version must be a string")
+        return self._app_update(lambda: self._app_updates.postpone(version))
+
+    def app_update_rollback(self, params: dict) -> dict:
+        if params.get("confirm") is not True:
+            raise ActionError("confirmation_required", "rolling back requires confirm=true")
+        return self._app_update(self._app_updates.rollback)
+
+    def app_update_restart(self, params: dict) -> dict:
+        if params.get("confirm") is not True:
+            raise ActionError("confirmation_required", "restarting the launcher requires confirm=true")
+        self.ctx.runner.run(["systemctl", "restart", "pivista-session.service", "--no-block"],
+                            timeout=10, check=True)
+        return {"restarting": True}
 
     # -- android ----------------------------------------------------------
     def android_status(self, _params: dict) -> dict:

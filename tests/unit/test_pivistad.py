@@ -258,6 +258,44 @@ class UpdateTests(unittest.TestCase):
             svc.update_apply({})
         self.assertEqual(ctx.exception.code, "confirmation_required")
 
+    def test_app_update_download_requires_confirmation(self):
+        svc = service_with(StubRunner())
+        with self.assertRaises(pivistad.ActionError) as ctx:
+            svc.app_update_download({})
+        self.assertEqual(ctx.exception.code, "confirmation_required")
+
+    def test_app_update_install_requires_confirmation(self):
+        svc = service_with(StubRunner())
+        with self.assertRaises(pivistad.ActionError) as ctx:
+            svc.app_update_install({})
+        self.assertEqual(ctx.exception.code, "confirmation_required")
+
+    def test_app_update_check_forwards_prerelease_flag(self):
+        svc = service_with(StubRunner())
+        seen = {}
+
+        def check(allow):
+            seen["allow"] = allow
+            return {"available": False, "installed": "0.3.0", "job": {"state": "idle"}}
+
+        svc._app_updates.check = check
+        result = svc.app_update_check({"allow_prerelease": True})
+        self.assertTrue(seen["allow"])
+        self.assertEqual(result["installed"], "0.3.0")
+
+    def test_app_update_restart_uses_systemctl(self):
+        runner = StubRunner()
+        svc = service_with(runner)
+        with self.assertRaises(pivistad.ActionError):
+            svc.app_update_restart({})
+        svc.app_update_restart({"confirm": True})
+        self.assertEqual(runner.calls[-1][:3], ["systemctl", "restart", "pivista-session.service"])
+
+    def test_app_update_status_is_readable_on_a_non_product_host(self):
+        status = service_with(StubRunner()).app_update_status({})
+        self.assertIn(status["installed"], {"unknown", "0.3.0"})
+        self.assertIn("job", status)
+
 
 class DisplayTests(unittest.TestCase):
     def test_display_summary_empty_is_safe(self):

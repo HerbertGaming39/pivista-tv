@@ -62,6 +62,8 @@ browser/session data.
 | Data | Location | Permissions |
 |---|---|---|
 | Launcher settings | `~/.config/PiVista/Launcher.conf` | user |
+| Update state and rollback copies | `/var/lib/pivista/updates/` | root `0700` |
+| Update public key | `/etc/pivista/update-pubkey.pem` | root `0644`, not group/other writable |
 | Browser profiles (cookies, sessions) | `~/.config/pivista/browser/` | user `0700` |
 | User web shortcuts | `~/.config/pivista/webapps.json` | user |
 | Diagnostics | `/var/lib/pivista/diagnostics/` | directory `0755`; JSON file `0644` (local only; contains device serial and network addresses) |
@@ -81,11 +83,25 @@ browser/session data.
 
 - apt sources are the ones baked into the pinned base image (`deb.debian.org`,
   `archive.raspberrypi.com`), verified by Debian/Raspberry Pi archive keys.
-- The update action does not accept package names or URLs from the UI.
-- Downloads are verified by apt's signature checks.
-- There is **no signed PiVista update channel** and **no rollback**. A compromised
-  Debian/Raspberry Pi archive key is outside this project's threat model.
-- A failed update is recovered by reflashing; see `recovery.md`.
+- The package update action does not accept package names or URLs from the UI.
+  Package downloads are verified by apt's signature checks. There is **no
+  automatic package rollback**; a failed package update is recovered by
+  reflashing. See `recovery.md`.
+- Launcher updates are a separate signed channel. The manifest must verify with
+  the root-owned Ed25519 public key at `/etc/pivista/update-pubkey.pem`; the
+  archive must match the SHA-256 in that signed manifest. HTTPS is enforced and
+  redirects are limited to GitHub hosts.
+- The privileged daemon owns the update directory and performs the swap. The
+  unprivileged launcher cannot supply a URL, script, archive path or destination.
+- The downloaded archive is data, not an installer. Only fixed paths are
+  accepted from it; scripts are never executed.
+- The previous launcher binary, QML, catalog and version file are copied to a
+  root-owned rollback directory before the swap. **Launcher** rollback is
+  implemented. **Full OS image** A/B updates and automatic package rollback are
+  not.
+- A compromised Debian/Raspberry Pi archive key, or a compromised GitHub account
+  plus the offline signing key, is outside this project's threat model. See
+  [updates.md](updates.md) for the complete release and verification procedure.
 
 ## What is not protected
 

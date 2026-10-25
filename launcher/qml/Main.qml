@@ -28,6 +28,8 @@ Window {
     property bool online: false
     property string netLabel: "offline"
     property int statusRequest: -1
+    property int appUpdateRequest: -1
+    property bool appUpdateNotified: false
     property string clockText: Qt.formatTime(new Date(), AppSettings.clock24h ? "HH:mm" : "h:mm AP")
     property string dateText: Qt.formatDateTime(new Date(), "ddd d MMM")
     property bool wizardVisible: !AppSettings.setupComplete && !uiDevMode
@@ -116,6 +118,14 @@ Window {
         statusRequest = control.call("network.status", {}, 15000)
     }
 
+    // The launcher update check is read-only: it asks the privileged daemon
+    // whether a signed release exists. It never downloads or installs without
+    // a Settings action, so a playing video is never interrupted by this timer.
+    function checkForAppUpdates() {
+        appUpdateRequest = control.call("app.update.check",
+                                         { allow_prerelease: AppSettings.appPrerelease }, 60000)
+    }
+
     onViewChanged: {
         syncNav()
         Qt.callLater(focusContent)
@@ -143,6 +153,28 @@ Window {
                 window.online = false
                 window.netLabel = "service unavailable"
             }
+        }
+    }
+
+    Connections {
+        target: control
+        function onResponse(id, data) {
+            if (id !== window.appUpdateRequest)
+                return
+            window.appUpdateRequest = -1
+            if (!data || data.available !== true || data.postponed === true)
+                window.appUpdateNotified = false
+            if (data && data.available === true && data.postponed !== true
+                    && AppSettings.updateNotifications && !window.wizardVisible
+                    && !window.screensaverActive && !catalog.externalAppActive
+                    && !window.appUpdateNotified) {
+                window.appUpdateNotified = true
+                window.showToast("PiVista " + data.latest + " is available in Settings → Updates")
+            }
+        }
+        function onFailed(id, code, message) {
+            if (id === window.appUpdateRequest)
+                window.appUpdateRequest = -1
         }
     }
 
@@ -187,6 +219,18 @@ Window {
         repeat: true
         running: true
         onTriggered: window.loadStatus()
+    }
+
+    Timer {
+        id: appUpdateTimer
+        interval: 60000
+        repeat: false
+        running: true
+        onTriggered: {
+            window.checkForAppUpdates()
+            interval = 6 * 60 * 60 * 1000
+            repeat = true
+        }
     }
 
     Timer {

@@ -69,6 +69,8 @@ cec-utils
 python3
 systemd
 dbus
+# The updater uses the OpenSSL CLI exclusively for Ed25519 manifest checks.
+openssl
 
 [build]
 build-essential

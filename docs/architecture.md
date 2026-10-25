@@ -106,15 +106,29 @@ supported because its icon appeared before it launches.
 | Browser profiles | `~/.config/pivista/browser/<service>` | yes | yes |
 | Diagnostics | `/var/lib/pivista/diagnostics/` | yes | yes |
 | Hardware snapshot | `/var/lib/pivista/hardware.json` | yes | no (regenerated) |
-| Build provenance | `/etc/pivista/` | replaced by update | yes |
+| Build provenance | `/etc/pivista/` | image metadata, not replaced by launcher updates | yes |
+| Launcher version | `/usr/share/pivista/version.json` | replaced by signed launcher update | yes |
+| Previous launcher backup | `/var/lib/pivista/updates/rollback/` | root-owned, local rollback | yes |
 | Logs | journald (bounded 96 MB) + `/var/log/pivista` | rotated | yes |
+
+## Update layers
+
+- **Launcher application** is updated from a signed GitHub release. It replaces
+  only the binary, QML, curated catalog and version file, keeps a root-owned
+  rollback copy, and never touches user settings or NetworkManager. See
+  [updates.md](updates.md).
+- **OS packages** remain on apt with their own signatures and no A/B rollback.
+- **Full disk image** updates are not implemented: the current single-slot
+  partition layout has no inactive root to write. A future A/B design using the
+  Pi 5 `tryboot` flow and RAUC is investigated in [updates.md](updates.md), but
+  it would require a new partition layout and a one-time migration.
 
 ## Known architectural limitations
 
-- **No A/B updates.** Package updates are transactional at the dpkg level only.
-  A broken update requires reflashing. Adding A/B would require a different
-  partition scheme and a signed update service; it is out of scope for this
-  release.
+- **No full-image A/B updates.** Package updates are transactional at the dpkg
+  level only; a broken OS update requires reflashing. The signed launcher update
+  is a separate, reversible channel and cannot repair a broken kernel or base
+  image.
 - **Widevine L3 only.** The CDM is a vendor package, not a certification.
 - **Chromium is the streaming path.** No official native Linux clients exist for
   the major services; browser profiles are the legitimate fallback.

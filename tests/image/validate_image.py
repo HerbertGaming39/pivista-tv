@@ -126,8 +126,11 @@ def check_rootfs(root: Path) -> dict:
         "etc/pivista/product.env",
         "usr/bin/pivista-launcher",
         "usr/lib/pivista/pivistad.py",
+        "usr/lib/pivista/pivista_update.py",
         "usr/share/pivista/qml/Main.qml",
         "usr/share/pivista/webapps/catalog.json",
+        "usr/share/pivista/version.json",
+        "etc/pivista/update-pubkey.pem",
         "etc/systemd/system/pivista-daemon.service",
         "etc/systemd/system/pivista-session.service",
         "etc/systemd/system/pivista-firstboot.service",
@@ -221,6 +224,20 @@ def check_rootfs(root: Path) -> dict:
             info = json.loads(info_path.read_text())
     record("build-info product is PiVista TV", info.get("product") == "PiVista TV", str(info.get("product")))
     record("build-info version present", bool(info.get("version")))
+
+    app_info = {}
+    app_path = root / "usr/share/pivista/version.json"
+    if app_path.is_file():
+        with contextlib.suppress(json.JSONDecodeError):
+            app_info = json.loads(app_path.read_text())
+    record("launcher version file is valid",
+           app_info.get("product") == "pivista-tv" and app_info.get("version") == info.get("version"),
+           f"{app_info.get('version')} vs image {info.get('version')}")
+    key_path = root / "etc/pivista/update-pubkey.pem"
+    key_text = key_path.read_text(errors="replace") if key_path.is_file() else ""
+    record("update public key is installed",
+           "BEGIN PUBLIC KEY" in key_text and key_path.stat().st_mode & 0o022 == 0,
+           "mode %o" % (key_path.stat().st_mode & 0o777) if key_path.exists() else "missing")
     return info
 
 

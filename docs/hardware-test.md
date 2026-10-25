@@ -6,7 +6,7 @@ because the screen looked plausible once.
 
 ## Before flashing
 
-- [ ] Image: `pivista-tv-0.2.0-pi5-arm64.img.xz` from the v0.2.0 GitHub
+- [ ] Image: `pivista-tv-0.3.0-pi5-arm64.img.xz` from the v0.3.0 GitHub
       release or `releases/` after a local build.
 - [ ] Compare the SHA-256 with the adjacent `.img.xz.sha256` file and the value
       published in the release notes (Windows `Get-FileHash`, Linux
@@ -57,7 +57,7 @@ because the screen looked plausible once.
 - [ ] Launch a native app; press **Home**. The app closes and Home returns.
 - [ ] Press Home twice quickly; the UI does not get stuck or double-launch.
 
-## 0.2 interface
+## 0.3 interface
 
 - [ ] Home shows the featured banner, **Your apps**, **Streaming** and
       **Installed applications** rows without overlapping or blank content.
@@ -70,6 +70,29 @@ because the screen looked plausible once.
 - [ ] Settings → Appearance changes theme, wallpaper, row visibility, start
       screen and 12/24-hour clock; each change applies without a restart.
 - [ ] Back/Backspace and Escape both return to the previous screen or Home.
+
+## Launcher updates (after installing the first signed update)
+
+The 0.3.0 image is the first image that can install signed launcher updates.
+A 0.1.0 card must be reflashed once; that migration cannot be done in place.
+
+- [ ] Settings → Updates shows **Launcher** and **Image** versions separately.
+- [ ] **Check for launcher updates** reports either the installed version as
+      current or a signed newer release; record the exact versions.
+- [ ] Download a release, confirm progress and SHA-256 verification, then
+      install; settings, favourites and Wi-Fi still exist after restart.
+- [ ] **Restart launcher** asks for confirmation; do not use it during playback
+      unless you accept that the video closes.
+- [ ] **Roll back to previous launcher** restores the prior version after a
+      restart and leaves user settings alone.
+- [ ] Corrupt a downloaded archive or use a test release with a bad signature
+      (only in a lab): install must refuse and the launcher must stay usable.
+- [ ] Disconnect the network during a download: the job fails, no partial file
+      is left behind and the installed launcher still starts.
+- [ ] Power off during an install (lab only): on next boot record whether the
+      old or new launcher starts and whether a rollback entry is offered.
+- [ ] Leave **Allow prerelease updates** off; confirm stable checks ignore a
+      prerelease tag. Turn it on and confirm it is an explicit choice.
 
 ## Settings and power
 

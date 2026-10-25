@@ -26,6 +26,7 @@ anything missing.
 | `./build.sh clean` | Removes the work directory (keeps downloads) |
 | `./build.sh clean --all` | Also removes release artifacts |
 | `./build.sh stage 25-launcher` | Runs a single stage (advanced) |
+| `tools/build-app-update.py` | Build and sign a launcher-only update archive from a mounted image (see [updates.md](updates.md)) |
 
 ## Pipeline stages
 
@@ -34,7 +35,7 @@ anything missing.
 | `10-base` | Download + SHA-256 verify the pinned image, decompress, grow partition 2, `resize2fs`, loop-mount, bind `/dev /proc /sys` | `state/10-base.done` |
 | `20-packages` | `apt-get update`, install `[runtime]`, install `[build]` dependencies, record versions | keyed by hash of `packages.lock` |
 | `25-launcher` | Copy C++/QML sources into the chroot, CMake build for arm64, install `/usr/bin/pivista-launcher`, run `--version` | keyed by hash of `launcher/` |
-| `30-overlay` | Install `system/rootfs`, QML, web catalog, daemon, branding, account, units, boot cmdline, docs; disable cloud-init and remove its seed; mask SSH host-key regeneration | `state/30-overlay.done` |
+| `30-overlay` | Install `system/rootfs`, QML, web catalog, daemon, update module/public key, launcher `version.json`, branding, account, units, boot cmdline, docs; disable cloud-init and remove its seed; mask SSH host-key regeneration | `state/30-overlay.done` |
 | `40-finalize` | Purge build deps with a post-purge launcher check, clean apt, reset machine-id, harden journald/logind, scan for credentials | `state/40-finalize.done` |
 | `50-image` | Unmount, `e2fsck -fn`, record size | — |
 | `60-validate` | `tests/image/validate_image.py` mounts read-only and checks the image | — |
@@ -85,6 +86,11 @@ What is not controlled:
 The project therefore claims **reproducible inputs and configuration**, not
 bit-for-bit images. Two builds were not compared byte-for-byte; no such claim is
 made.
+
+The app-update archive is separately deterministic for the same input files:
+`tools/build-app-update.py` fixes tar metadata and uses a fixed xz preset. Its
+manifest binds the exact archive size and SHA-256. The manifest is signed with
+the offline Ed25519 key; the private key is not in this repository.
 
 ## Adding a package or changing the product
 

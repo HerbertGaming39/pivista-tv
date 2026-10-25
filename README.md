@@ -21,6 +21,9 @@ Flash → boot → first-time setup → television
   settings app.
 - A **narrow privileged service** (`pivistad`) that owns network, audio,
   display, update and power operations. The launcher runs unprivileged.
+- A **signed launcher update channel** with Ed25519 manifest verification,
+  SHA-256 archive checks, a staged swap and a rollback copy. OS images and apt
+  packages remain separate paths.
 - A **sway kiosk session** that provides a real global Home key, so a streaming
   window can always be dismissed and the launcher refocused.
 - A **build system** that verifies its inputs, assembles the image, produces a
@@ -34,12 +37,12 @@ Flash → boot → first-time setup → television
   [docs/streaming.md](docs/streaming.md); no 1080p claim is made.
 - **Not validated on physical hardware for this release.** The image is
   structurally validated and its sealed launcher is rendered under qemu-user;
-  the physical Pi was unreachable during the 0.2.0 build. See
+  the physical Pi was unreachable during the 0.3.0 build. See
   [STATUS.md](STATUS.md).
 - **Not a fork of the Linux kernel or Raspberry Pi firmware.** Upstream
   Raspberry Pi OS components are pinned, not patched.
 
-## The 0.2 interface
+## The 0.3 interface
 
 - **Home** is a television home screen: a large featured banner, a favourites
   row, a streaming row, recently opened applications and installed native apps.
@@ -84,11 +87,14 @@ Implemented and covered by automated tests:
   details, recently opened apps and appearance settings
 - `pivistad` action API with validation and unit tests
 - First-boot wizard, settings, search, screensaver, quick panel
+- Signed launcher update client and Settings UI: release discovery,
+  Ed25519 manifest verification, SHA-256 archive verification, atomic install,
+  rollback and recovery state
 - NetworkManager/PipeWire integration code paths
 - Image structure validation and package manifest
 
-Automated tests in this build: **38 host Python tests, 6 launcher/Qt cases, 27
-offscreen screen renders and 46/46 image checks**. The image is structurally
+Automated tests in this build: **69 host Python tests, 7 launcher/Qt cases, 29
+offscreen screen renders and 51 image checks**. The image is structurally
 validated, its sealed launcher was rendered under qemu-user, and it is not
 booted on a Pi.
 
@@ -126,9 +132,9 @@ wsl -d Ubuntu -u root -- bash /mnt/c/path/to/pivista-tv/build.sh image
 Outputs land in `releases/`:
 
 ```
-pivista-tv-0.2.0-pi5-arm64.img.xz
-pivista-tv-0.2.0-pi5-arm64.img.xz.sha256
-pivista-tv-0.2.0-pi5-arm64.manifest.json
+pivista-tv-0.3.0-pi5-arm64.img.xz
+pivista-tv-0.3.0-pi5-arm64.img.xz.sha256
+pivista-tv-0.3.0-pi5-arm64.manifest.json
 RELEASE-NOTES.md
 ```
 
@@ -140,30 +146,30 @@ Full details, including resource use and incremental builds, are in
 This is the image to test on a physical Raspberry Pi 5. The build host could not
 boot it; the checks below are structural and host-side only.
 
-Download it from the [v0.2.0 GitHub release](https://github.com/HerbertGaming39/pivista-tv/releases/tag/v0.2.0).
+Download it from the [v0.3.0 GitHub release](https://github.com/HerbertGaming39/pivista-tv/releases/tag/v0.3.0).
 The 1.23 GB image is a release asset, not a file in the Git tree; `releases/` is
 where a local build writes it.
 
 | Field | Value |
 |---|---|
-| Image | [`pivista-tv-0.2.0-pi5-arm64.img.xz`](https://github.com/HerbertGaming39/pivista-tv/releases/download/v0.2.0/pivista-tv-0.2.0-pi5-arm64.img.xz) |
-| Size | 1,230,308,476 bytes (1.23 GB compressed) |
-| SHA-256 | `02445ff9d2056941a77b02694fccc5f9f7979056fb2bfca8e043347f3ba5f1b4` |
-| Build ID | `20261025T153658Z` |
-| Host tests | 38 host Python tests, 6 launcher/Qt cases, 27 offscreen screen renders, 46/46 image checks (this build) |
+| Image | [`pivista-tv-0.3.0-pi5-arm64.img.xz`](https://github.com/HerbertGaming39/pivista-tv/releases/download/v0.3.0/pivista-tv-0.3.0-pi5-arm64.img.xz) |
+| Size | 1,230,380,528 bytes (1.23 GB compressed) |
+| SHA-256 | `acc6240773197036a8337948aa355064e3187e233ffd9b2174339b3e57098fb5` |
+| Build ID | `20261025T172226Z` |
+| Host tests | 69 host Python tests, 7 launcher/Qt cases, 29 offscreen screen renders, 51 image checks (this build) |
 | Hardware test checklist | [docs/hardware-test.md](docs/hardware-test.md) |
 
 Verify the checksum before writing anything:
 
 ```powershell
 # Windows PowerShell
-Get-FileHash .\pivista-tv-0.2.0-pi5-arm64.img.xz -Algorithm SHA256
-Get-Content .\pivista-tv-0.2.0-pi5-arm64.img.xz.sha256
+Get-FileHash .\pivista-tv-0.3.0-pi5-arm64.img.xz -Algorithm SHA256
+Get-Content .\pivista-tv-0.3.0-pi5-arm64.img.xz.sha256
 ```
 
 ```bash
 # Linux / WSL, from the releases directory
-sha256sum -c pivista-tv-0.2.0-pi5-arm64.img.xz.sha256
+sha256sum -c pivista-tv-0.3.0-pi5-arm64.img.xz.sha256
 ```
 
 ### Windows
@@ -182,8 +188,8 @@ sha256sum -c pivista-tv-0.2.0-pi5-arm64.img.xz.sha256
 ```bash
 lsblk                       # identify the card; never guess /dev/sdX
 cd pivista-tv/releases
-sha256sum -c pivista-tv-0.2.0-pi5-arm64.img.xz.sha256
-xz -dc pivista-tv-0.2.0-pi5-arm64.img.xz | \
+sha256sum -c pivista-tv-0.3.0-pi5-arm64.img.xz.sha256
+xz -dc pivista-tv-0.3.0-pi5-arm64.img.xz | \
   sudo dd of=/dev/sdX bs=4M status=progress conv=fsync
 sync
 ```
@@ -258,10 +264,24 @@ the launcher shows the reasons in Settings. See [docs/android.md](docs/android.m
 
 ## Updates and recovery
 
-Updates use Debian packages from the sources baked into the image. There is no
-A/B partition scheme and **no automatic rollback**. A failed update is recovered
-by reflashing a known-good image. The procedure is in
-[docs/recovery.md](docs/recovery.md).
+There are two separate update paths:
+
+- **Launcher application** (binary, QML, app catalog): signed GitHub releases,
+  verified with an Ed25519 public key, downloaded and installed from
+  **Settings → Updates**, with a root-owned rollback copy. This is the path that
+  avoids reflashing for application changes. User settings, favourites, web
+  shortcuts, browser profiles and network configuration are not touched.
+- **Debian/Raspberry Pi OS packages**: the existing apt path. There is no A/B
+  partition scheme and **no automatic package rollback**; a failed OS update is
+  recovered by reflashing a known-good image.
+
+A **0.1.0 card cannot install this updater in place** because that image has no
+update service or public key. It needs one reflash to 0.3.0; from then on the
+launcher updater works. Full-image A/B updates (RAUC/`tryboot`) are investigated
+but not implemented, because they need a different partition layout and a
+one-time migration. Read [docs/updates.md](docs/updates.md) for the trust model,
+release procedure and migration path, and [docs/recovery.md](docs/recovery.md)
+for recovery.
 
 ## Troubleshooting
 
@@ -273,7 +293,8 @@ by reflashing a known-good image. The procedure is in
 | Wi-Fi will not join | Check the password dialog error; try Ethernet; hidden networks need a NetworkManager keyfile |
 | No audio | Settings → Audio → choose the HDMI sink → Play test sound |
 | Wrong time zone/locale | Settings → Network/Display; the wizard can be re-run from Privacy and security |
-| Update looks stuck | Do not power off; if it fails, reflash; there is no rollback |
+| Launcher update fails | Check the error in Settings → Updates; retry, or use **Roll back to previous launcher** if offered |
+| System package update fails | Do not power off; if it does not recover, reflash; there is no package rollback |
 
 Before reporting a problem, use **Settings → System → Export diagnostics**. It
 writes a local JSON file (device serial and network addresses included) and
@@ -292,7 +313,8 @@ launcher/                 Qt 6 C++ launcher and QML interface
 daemon/                   pivistad privileged control service
 applications/web/         curated web application catalog
 tests/                    unit, image and launcher tests
-docs/                     architecture, streaming, build, security, recovery
+docs/                     architecture, streaming, build, security, updates, recovery
+tools/                    release helpers, including the signed app-update builder
 releases/                 generated images and manifests (not source)
 ```
 

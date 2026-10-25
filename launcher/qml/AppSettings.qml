@@ -21,6 +21,7 @@ Item {
         property string timezone: "Europe/Warsaw"
         property bool privacyAccepted: false
         property bool updateNotifications: true
+        property bool appPrerelease: false
         property string theme: "aurora"
         property string wallpaper: "aurora"
         property bool showRecent: true
@@ -39,6 +40,7 @@ Item {
     property alias timezone: storage.timezone
     property alias privacyAccepted: storage.privacyAccepted
     property alias updateNotifications: storage.updateNotifications
+    property alias appPrerelease: storage.appPrerelease
     property alias theme: storage.theme
     property alias wallpaper: storage.wallpaper
     property alias showRecent: storage.showRecent

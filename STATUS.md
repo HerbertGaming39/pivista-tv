@@ -136,7 +136,7 @@ Status vocabulary:
 | SHA-256 | `4dc319f11004dff4e8bae11f50b85bda009fad042c73a1ef879d1434228e2ab5` |
 | Build ID | `20261025T191615Z` |
 | Packages | 1046 installed (versions in the manifest) |
-| Source state | Image content committed in `6178257`; artifact manifest generated from clean tree `028d1db` after sealing |
+| Source state | Image content committed in `73bcdb1`; artifact manifest generated from that clean tree after sealing |
 | Hardware test checklist | [docs/hardware-test.md](docs/hardware-test.md) |
 
 ## What is deliberately absent

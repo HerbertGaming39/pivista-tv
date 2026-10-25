@@ -3,8 +3,8 @@
 # pinned base image's apt sources. Runs inside the base image chroot.
 set -euo pipefail
 
-PROJECT=/mnt/c/Users/marcel/Downloads/pivista-tv
-WORK=/var/tmp/pivista-build
+PROJECT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+WORK=${PIVISTA_WORK_DIR:-/var/tmp/pivista-build}
 IMG="$WORK/downloads/base.img"
 ROOT="$WORK/pkgcheck-root"
 

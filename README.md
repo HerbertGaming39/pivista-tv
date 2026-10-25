@@ -263,7 +263,7 @@ releases/                 generated images and manifests (not source)
 
 ## Licence
 
-PiVista TV source is **GPL-3.0-or-later** (see [LICENSE](LICENSE)); Qt 6 is used
+PiVista TV source is **GPL-3.0** (see [LICENSE](LICENSE)); Qt 6 is used
 under the GPL option. The base image contains software under many licences;
 every package's notices remain in `/usr/share/doc` on the device. PiVista TV is
 an independent project and is not affiliated with or endorsed by Raspberry Pi

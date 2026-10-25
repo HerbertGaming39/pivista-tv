@@ -109,9 +109,13 @@ Full details, including resource use and incremental builds, are in
 This is the image to test on a physical Raspberry Pi 5. The build host could not
 boot it; the checks below are structural and host-side only.
 
+Download it from the [v0.1.0 GitHub release](https://github.com/HerbertGaming39/pivista-tv/releases/tag/v0.1.0).
+The 1.2 GiB image is a release asset, not a file in the Git tree; `releases/` is
+where a local build writes it.
+
 | Field | Value |
 |---|---|
-| Image | `releases/pivista-tv-0.1.0-pi5-arm64.img.xz` |
+| Image | [`pivista-tv-0.1.0-pi5-arm64.img.xz`](https://github.com/HerbertGaming39/pivista-tv/releases/download/v0.1.0/pivista-tv-0.1.0-pi5-arm64.img.xz) |
 | Size | 1,290,377,464 bytes (1.20 GiB compressed) |
 | SHA-256 | `576f4a056fb405cae2f800bf581ba91099726b9a8a43d93659f78d8f8cc1be82` |
 | Build ID | `20261025T133307Z` |

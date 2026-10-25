@@ -2,6 +2,7 @@ import QtQuick
 
 Item {
     id: home
+    objectName: "homeScreen"
 
     signal requestHeaderFocus()
 
@@ -22,8 +23,13 @@ Item {
     function focusFirst() {
         if (banner.visible)
             banner.forceActiveFocus()
-        else
+        else if (visibleRows().length > 0)
             focusFirstRow()
+        else
+            // An empty Home still has to be navigable: otherwise there is no
+            // focus target at all and the remote cannot reach Settings to add
+            // a shortcut or connect the network.
+            home.requestHeaderFocus()
     }
 
     function focusContent() {
@@ -101,14 +107,21 @@ Item {
 
             FeaturedBanner {
                 id: banner
+                objectName: "featuredBanner"
                 width: parent.width
                 featured: catalog.featured
                 onActivated: catalog.launch(featured.id)
                 onNavigateDown: home.focusFirstRow()
+                // Up from the featured banner is the only way back to the
+                // header on a home screen whose first row is already the top
+                // of the content.  Without it a remote is trapped between the
+                // banner and the first row and cannot reach Settings.
+                onNavigateUp: home.requestHeaderFocus()
             }
 
             MediaRow {
                 id: recentRow
+                objectName: "recentRow"
                 width: parent.width
                 title: "Recently opened"
                 items: catalog.recent
@@ -120,6 +133,7 @@ Item {
 
             MediaRow {
                 id: favoritesRow
+                objectName: "favoritesRow"
                 width: parent.width
                 title: "Your apps"
                 items: catalog.favorites
@@ -131,6 +145,7 @@ Item {
 
             MediaRow {
                 id: streamingRow
+                objectName: "streamingRow"
                 width: parent.width
                 title: "Streaming"
                 items: catalog.streaming
@@ -142,6 +157,7 @@ Item {
 
             MediaRow {
                 id: appsRow
+                objectName: "appsRow"
                 width: parent.width
                 title: "Installed applications"
                 items: catalog.nativeApps

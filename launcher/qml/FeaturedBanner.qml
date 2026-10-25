@@ -6,6 +6,7 @@ FocusScope {
     property var featured: ({})
     property bool hasContent: featured && featured.id !== undefined && featured.id !== ""
     signal activated()
+    signal navigateUp()
     signal navigateDown()
 
     implicitHeight: Theme.s(258)
@@ -164,6 +165,7 @@ FocusScope {
 
     Keys.onReturnPressed: banner.activate()
     Keys.onEnterPressed: banner.activate()
+    Keys.onUpPressed: banner.navigateUp()
     Keys.onDownPressed: banner.navigateDown()
     MouseArea {
         anchors.fill: parent

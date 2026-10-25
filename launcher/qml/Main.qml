@@ -5,6 +5,7 @@ import QtQuick.Shapes
 
 Window {
     id: window
+    objectName: "pivistaWindow"
     visible: true
     width: initialWidth
     height: initialHeight
@@ -399,6 +400,7 @@ Window {
 
             ListView {
                 id: navList
+                objectName: "navList"
                 anchors.left: brand.right
                 anchors.leftMargin: Theme.s(46)
                 anchors.verticalCenter: parent.verticalCenter
@@ -475,6 +477,11 @@ Window {
         // Content
         Loader {
             id: contentLoader
+            // The wizard is a full-screen overlay.  Do not load or focus the
+            // home screen underneath it: its queued focus calls used to steal
+            // focus from the wizard's ActionList a moment after activation,
+            // which made every key look dead on the first boot.
+            active: !window.wizardVisible
             anchors.top: header.bottom
             anchors.topMargin: Theme.s(16)
             anchors.left: parent.left

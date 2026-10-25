@@ -41,10 +41,13 @@ Qt Test, runs guiless on the host:
   tiles, with a reason available for diagnostics;
 - favourites and hidden state persisted across a catalog reload;
 - the user-only Home relay accepts a client and emits `homeRequested`, which is
-  what makes the global Home key return to the launcher.
+  what makes the global Home key return to the launcher;
+- the production home screen moves Up from the featured banner to the header,
+  then right through the sections and into Settings, so a remote cannot be
+  trapped between the banner and the first content row.
 
 ```bash
-tests/run-launcher-tests.sh        # builds and runs both executables via CTest
+tests/run-launcher-tests.sh        # builds and runs all four test executables via CTest
 ```
 
 ### QML loading and rendering (`tests/ui/render_screens.sh`)
@@ -108,7 +111,7 @@ Mounts the sealed image read-only and checks:
 - launcher version metadata and the installed Ed25519 update public key (not
   group/other writable).
 
-The reference 0.3.1 build reports **51 passed, 0 failed**.
+The reference 0.3.1 image validation reports **51 passed, 0 failed**.
 
 ```bash
 sudo python3 tests/image/validate_image.py --image /var/tmp/pivista-build/work.img
@@ -116,6 +119,22 @@ sudo python3 tests/image/validate_image.py --image /var/tmp/pivista-build/work.i
 
 A passing validation proves the image is structurally sound. It does **not**
 prove that it boots.
+
+### Windows/WSLg UI preview
+
+For a visual, interactive check before flashing, run the production launcher
+through WSLg. It uses the same QML and keyboard handling as the image, with an
+isolated preview settings directory:
+
+```powershell
+.\tools\windows-preview.ps1
+.\tools\windows-preview.ps1 -Reset
+```
+
+It is useful for the first-boot wizard, focus movement, Settings and error
+states. It has no `pivistad`, no sway/libinput and no real display/audio/Wi-Fi
+hardware, so it cannot pass the hardware checklist. See
+[windows-preview.md](windows-preview.md).
 
 ## What cannot be tested here
 

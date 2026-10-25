@@ -212,6 +212,23 @@ ext4 root partition that grows to fill the card on first boot.
 Settings can be reopened at any time from the top bar. The wizard can be run
 again from **Settings → Privacy and security → Run first-time setup**.
 
+### Try the interface on Windows first
+
+The production launcher can run inside WSL2 and appear on the Windows desktop
+through WSLg. This tests the wizard, keyboard/remote focus and Settings without
+flashing a card:
+
+```powershell
+.\tools\windows-preview.ps1
+.\tools\windows-preview.ps1 -Reset   # show the first-boot wizard again
+```
+
+It is a UI preview, not a Pi emulator: there is no control service, so network,
+display, audio and package actions report errors, and it cannot prove HDMI,
+Wi-Fi, DRM or a physical remote. See
+[docs/windows-preview.md](docs/windows-preview.md) for requirements and the
+focus checklist.
+
 ### Default login and security
 
 There is **no default password and no usable login**. `root` and `pivista` are
@@ -235,7 +252,9 @@ it. See [docs/recovery.md](docs/recovery.md).
 | Ctrl+Alt+F1 | Back to the TV UI |
 
 USB keyboards and remotes that emit standard key codes work without
-configuration. Unusual IR remotes can be mapped in `/etc/pivista/input.map`.
+configuration; connect them to the **Pi**, not the television. A keyboard
+hot-plugged after boot can take a few seconds to enumerate. Unusual IR remotes
+can be mapped in `/etc/pivista/input.map`.
 The image contains BlueZ and the Bluetooth service is enabled, but this release
 has **no Bluetooth pairing screen**; a Bluetooth-only remote cannot be paired
 from the TV yet. Use USB for the first boot, or pair a device from a debug
@@ -293,6 +312,7 @@ for recovery.
 | Wizard does not reappear after a reset | Remove `~/.config/PiVista/Launcher.conf` while the card is mounted; see [docs/recovery.md](docs/recovery.md) |
 | Wi-Fi will not join | Check the password dialog error; try Ethernet; hidden networks need a NetworkManager keyfile |
 | No audio | Settings → Audio → choose the HDMI sink → Play test sound |
+| Cannot reach Settings with a keyboard or remote | Test the next build in the [Windows preview](docs/windows-preview.md); 0.3.1 can trap focus between the featured banner and the first row |
 | Wrong time zone/locale | Settings → Network/Display; the wizard can be re-run from Privacy and security |
 | Launcher update fails | Check the error in Settings → Updates; retry, or use **Roll back to previous launcher** if offered |
 | System package update fails | Do not power off; if it does not recover, reflash; there is no package rollback |

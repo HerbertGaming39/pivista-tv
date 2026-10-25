@@ -70,18 +70,25 @@ This is nearly always an input-path problem, not a frozen launcher.
    TV's USB port controls the TV. A Bluetooth keyboard also cannot be used:
    the image has no Bluetooth pairing screen. A wireless keyboard with its own
    USB dongle is fine; put the dongle in the Pi.
-3. **Wake the launcher first.** Press **Home** once (the sway binding also
-   focuses the launcher), then **Escape** once, then use the arrows and Enter.
-   Escape moves focus from the wizard overlay to its visible button list.
+3. **Give a hot-plugged keyboard a moment.** 0.3.1 focuses the wizard
+   automatically, but USB enumeration can take a few seconds after the picture
+   appears. If keys still do nothing, press **Home** once (the sway binding
+   also focuses the launcher), then **Escape** once, then use the arrows and
+   Enter. On 0.3.0, Escape is what moves focus from the overlay to the visible
+   button list; 0.3.1 also moves it on activation.
 4. **Check that the Pi sees the keyboard.** Press **Ctrl+Alt+F2**. A text login
    prompt appearing proves the keyboard reaches the Pi (the accounts are
    locked, so you cannot log in). If nothing appears, try another USB port, a
-   wired keyboard, and boot with the keyboard already connected.
+   wired keyboard, and boot with the keyboard already connected. Prefer a
+   direct Pi USB-A port over an unpowered hub.
+
 5. **Blank/black screen instead?** See the previous section; that is a display
    or compositor failure, not input.
 
 PiVista deliberately has no SSH server. An address that worked for an earlier
-Raspberry Pi OS card is not reachable after that card is replaced.
+Raspberry Pi OS card is not reachable after that card is replaced. If you want
+to check focus behaviour before flashing, run the production launcher in the
+[Windows/WSLg preview](windows-preview.md).
 
 ## The launcher crashes or restarts in a loop
 

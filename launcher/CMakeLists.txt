@@ -67,4 +67,23 @@ if(PIVISTA_BUILD_TESTS)
         Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::Network Qt6::Test
     )
     add_test(NAME launcher-wizard COMMAND pivista-wizard-tests)
+
+    add_executable(pivista-home-navigation-tests
+        tests/test_home_navigation.cpp
+        src/appcatalog.cpp
+        src/appcatalog.h
+        src/controlclient.cpp
+        src/controlclient.h
+        src/homecontrol.cpp
+        src/homecontrol.h
+    )
+    target_include_directories(pivista-home-navigation-tests PRIVATE src)
+    target_compile_definitions(pivista-home-navigation-tests PRIVATE
+        PIVISTA_QML_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml"
+        PIVISTA_WEBAPP_CATALOG="${CMAKE_CURRENT_SOURCE_DIR}/../applications/web/catalog.json"
+    )
+    target_link_libraries(pivista-home-navigation-tests PRIVATE
+        Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::Network Qt6::Test
+    )
+    add_test(NAME launcher-home-navigation COMMAND pivista-home-navigation-tests)
 endif()

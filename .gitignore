@@ -1,6 +1,13 @@
 # Build outputs
 build/logs/
 build/launcher-tests/
+build/launcher-wsl/
+build/launcher-preview/
+build/launcher-wsl-preview/
+build/preview-*/
+build/preview-*.png
+build/preview-*.log
+build/preview.log
 build/ui/
 build/ui-tests/
 launcher/build/

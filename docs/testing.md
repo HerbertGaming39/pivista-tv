@@ -74,7 +74,7 @@ Mounts the sealed image read-only and checks:
 - aarch64 launcher and kernel (the gzip-compressed `kernel_2712.img` is
   decompressed before `file` inspects it).
 
-The reference build reports **38 passed, 0 failed**.
+The reference build reports **39 passed, 0 failed**.
 
 ```bash
 sudo python3 tests/image/validate_image.py --image /var/tmp/pivista-build/work.img

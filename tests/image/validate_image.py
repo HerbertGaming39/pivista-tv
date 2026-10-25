@@ -143,6 +143,9 @@ def check_rootfs(root: Path) -> dict:
     record("ssh server not installed",
            not (root / "usr/sbin/sshd").exists()
            and not (root / "etc/ssh/sshd_config").exists())
+    record("vendor first-boot helpers disabled",
+           not (root / "etc/systemd/system/multi-user.target.wants/userconfig.service").exists()
+           and not (root / "etc/systemd/system/multi-user.target.wants/sshswitch.service").exists())
     record("no pi account", "pi:" not in (root / "etc/passwd").read_text(errors="replace"))
 
     passwd = (root / "etc/passwd").read_text(errors="replace") if (root / "etc/passwd").is_file() else ""

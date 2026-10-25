@@ -111,6 +111,13 @@ PY
   enable_unit "$ROOT_MNT" pivista-session.service graphical.target
   enable_unit "$ROOT_MNT" pivista-firstboot.service multi-user.target
   enable_unit "$ROOT_MNT" pivista-input.service multi-user.target
+  # Vendor first-boot assistants are replaced by PiVista's own wizard. The
+  # stock userconf service would open an account dialog on tty8; sshswitch has
+  # no SSH server to switch on because stage 40 removes it.
+  for vendor_unit in userconfig.service sshswitch.service; do
+    rm -f "$ROOT_MNT/etc/systemd/system/multi-user.target.wants/${vendor_unit}"
+    chroot_run systemctl mask "$vendor_unit" >/dev/null 2>&1 || true
+  done
   # systemctl cannot talk to a running manager inside the chroot; set the
   # default target the way systemctl does, by symlink.
   ln -sf /lib/systemd/system/graphical.target "$ROOT_MNT/etc/systemd/system/default.target"

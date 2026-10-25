@@ -89,7 +89,8 @@ browser/session data.
 
 ## Hardening defaults in the image
 
-- No SSH server; no remote shell.
+- No SSH server; no remote shell. `openssh-server` is purged and its units masked.
+- Vendor `userconfig.service` and `sshswitch.service` are masked; PiVista's own wizard owns first boot.
 - No inbound listening services from PiVista.
 - `kernel.dmesg_restrict=1`.
 - systemd service sandboxing for `pivistad`: private `/tmp`, read-only home,

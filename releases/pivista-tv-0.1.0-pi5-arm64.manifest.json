@@ -7,14 +7,14 @@
     "sha256": "",
     "url": ""
   },
-  "build_id": "20261025T102425Z",
+  "build_id": "20261025T103527Z",
   "codename": "Aurora",
-  "created_utc": "2026-10-25T10:32:56Z",
+  "created_utc": "2026-10-25T10:38:45Z",
   "image": {
     "compression": "xz",
     "file": "pivista-tv-0.1.0-pi5-arm64.img.xz",
-    "sha256": "ce2e64f9d1e4da1750d2faf2d97f9f6e19f851c7f21ebe9f3a7c4f63f95ee02e",
-    "size_bytes": 1382782192
+    "sha256": "8408c8e8167a974049cd83e7099966403ee79bf933c79cd07f1ab30f3da13280",
+    "size_bytes": 1382768060
   },
   "known_limitations": [
     "No physical Raspberry Pi 5 boot test was performed by the build host.",
@@ -24,12 +24,12 @@
   "launcher": "PiVista TV launcher 0.1.0",
   "product": "PiVista TV",
   "provenance": {
-    "build_log_sha256": "a7aa7e658ee339520d7994175699b2ac3cf2a76433a71b2b7172fe87fa5e718c",
+    "build_log_sha256": "32379d9c30771a34c8827659311c562bce99dbd8c60208ea0ee65ed805663115",
     "builder": "build.sh",
     "host_arch": "x86_64",
     "reproducibility": "pinned inputs and deterministic configuration; not bit-for-bit reproducible",
-    "source_commit": "fca8f70fb4f40b042698ccb420935f110d2dcab7",
-    "source_dirty": null
+    "source_commit": "b99b4e9358f36de9521a470663646349f6198974",
+    "source_dirty": true
   },
   "schema": 1,
   "slug": "pivista-tv",

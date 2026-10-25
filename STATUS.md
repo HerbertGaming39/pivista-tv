@@ -1,6 +1,6 @@
 # PiVista TV — status
 
-Updated: 2026-10-25 · Version 0.1.0 "Aurora" · Build 20261025T102425Z ·
+Updated: 2026-10-25 · Version 0.1.0 "Aurora" · Build 20261025T103527Z ·
 Build host: x86_64 WSL2 (Ubuntu), no Raspberry Pi 5 attached.
 
 Status vocabulary:
@@ -22,7 +22,9 @@ Status vocabulary:
 | Pi 5-specific configuration | Implemented | `kernel_2712.img`, `bcm2712-rpi-5-b.dtb`, `[pi5]` config section retained |
 | Reproducible dependency pins | Verified | base image SHA-256 verified at build time; package versions recorded |
 | Flashable image produced | Verified | `releases/pivista-tv-0.1.0-pi5-arm64.img.xz`, 1.29 GiB, SHA-256 recorded |
-| Image structure validated | Verified | `tests/image/validate_image.py`: 38/38 checks |
+| Image structure validated | Verified | `tests/image/validate_image.py`: 39/39 checks |
+| First-boot root resize | Implemented | vendor `rpi-resize.service` enabled (`systemd-growfs-root`); not exercised on a flashed card |
+| Vendor first-boot helpers disabled | Verified | `userconfig.service` and `sshswitch.service` masked |
 | Boot on physical Pi 5 | **Blocked** | No hardware attached to the build host |
 | Persistent user settings | Implemented | `~/.config/PiVista/Launcher.conf` |
 | Shutdown / reboot | Implemented | `pivistad` → `systemctl poweroff/reboot` |
@@ -67,7 +69,7 @@ Status vocabulary:
 | Clean build instructions | Verified — `build.sh check` |
 | Dependency pinning | Verified — [manifest/base-image.lock](manifest/base-image.lock) |
 | Build logs | Implemented — `build/logs/build-<id>.log` |
-| Automated tests | Verified — 33 daemon + 7 launcher + 38 image checks, all passing |
+| Automated tests | Verified — 33 daemon + 7 launcher + 39 image checks, all passing |
 | Image checksums | Verified — `.sha256` matches; `xz -t` passes |
 | Software licence notices | Implemented — `/usr/share/doc` retained in image |
 | Update and recovery documentation | Verified — [docs/recovery.md](docs/recovery.md) |
@@ -79,9 +81,9 @@ Status vocabulary:
 | Field | Value |
 |---|---|
 | Image | `releases/pivista-tv-0.1.0-pi5-arm64.img.xz` |
-| Size | 1,382,782,192 bytes (1.29 GiB compressed) |
-| SHA-256 | `ce2e64f9d1e4da1750d2faf2d97f9f6e19f851c7f21ebe9f3a7c4f63f95ee02e` |
-| Build ID | `20261025T102425Z` |
+| Size | 1,382,768,060 bytes (1.29 GiB compressed) |
+| SHA-256 | `8408c8e8167a974049cd83e7099966403ee79bf933c79cd07f1ab30f3da13280` |
+| Build ID | `20261025T103527Z` |
 | Packages | 1046 installed (versions in the manifest) |
 
 ## What is deliberately absent

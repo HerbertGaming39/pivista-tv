@@ -1,0 +1,35 @@
+[Unit]
+Description=PiVista TV graphical session
+Documentation=file:///usr/share/doc/pivista/README.md
+After=systemd-user-sessions.service pivista-daemon.service systemd-logind.service
+Wants=pivista-daemon.service
+Conflicts=getty@tty1.service
+Before=getty@tty2.service
+
+[Service]
+User=pivista
+PAMName=pivista
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+StandardInput=tty
+StandardOutput=journal
+StandardError=journal
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+Environment=XDG_SESSION_TYPE=wayland
+Environment=XDG_CURRENT_DESKTOP=PiVista
+Environment=QT_QPA_PLATFORM=wayland
+Environment=QT_QUICK_CONTROLS_STYLE=Basic
+Environment=SDL_VIDEODRIVER=wayland
+Environment=MOZ_ENABLE_WAYLAND=1
+ExecStart=/usr/lib/pivista/session.sh
+Restart=on-failure
+RestartSec=3
+StartLimitIntervalSec=60
+StartLimitBurst=5
+TimeoutStopSec=15
+KillMode=mixed
+
+[Install]
+WantedBy=graphical.target

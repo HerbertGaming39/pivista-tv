@@ -1,0 +1,31 @@
+# PiVista TV — sway kiosk session configuration.
+# This is a single-purpose session: no bar, no desktop, no window decorations.
+
+xwayland disable
+default_border none
+default_floating_border none
+hide_edge_borders both
+focus_follows_mouse no
+mouse_warping none
+
+seat seat0 hide_cursor 1200
+
+# The launcher and streaming windows fill the television.
+for_window [app_id="pivista-launcher"] fullscreen enable
+for_window [app_id="pivista-webapp"] fullscreen enable
+for_window [app_id="chromium"] fullscreen enable
+
+# Global remote/keyboard bindings. These work even when Chromium has focus.
+# Remotes usually send XF86HomePage; full keyboards send Home.
+bindsym XF86HomePage exec /usr/lib/pivista/home.sh
+bindsym Home exec /usr/lib/pivista/home.sh
+bindsym XF86AudioRaiseVolume exec /usr/bin/wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+
+bindsym XF86AudioLowerVolume exec /usr/bin/wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-
+bindsym XF86AudioMute exec /usr/bin/wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
+bindsym Control+Alt+BackSpace exec /usr/bin/swaymsg exit
+bindsym Control+Alt+Delete exec /usr/bin/systemctl reboot
+
+# No power-menu key: a short power-button press is handled by systemd-logind
+# with a clean shutdown (see logind.conf.d/10-pivista.conf).
+
+exec /usr/lib/pivista/launcher-loop.sh

@@ -1,0 +1,14 @@
+[Unit]
+Description=PiVista TV first-boot preparation
+After=local-fs.target
+Before=pivista-session.service
+ConditionPathExists=!/var/lib/pivista/firstboot.done
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/pivista/firstboot.sh
+RemainAfterExit=yes
+StandardOutput=journal
+
+[Install]
+WantedBy=multi-user.target

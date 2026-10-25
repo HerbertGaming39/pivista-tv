@@ -1,0 +1,17 @@
+# Build outputs
+build/logs/
+build/launcher-tests/
+launcher/build/
+releases/*.img
+releases/*.img.xz
+# Small release metadata is a deliverable; the image itself is not.
+!releases/*.sha256
+!releases/*.manifest.json
+
+# Python
+__pycache__/
+*.pyc
+
+# Editor / OS noise
+.DS_Store
+*.swp

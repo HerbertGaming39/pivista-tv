@@ -1,0 +1,88 @@
+# PiVista TV package manifest.
+# Sections are parsed by build/lib/common.sh. Package versions are resolved from
+# the pinned base image's apt sources at build time; the exact resolved versions
+# are recorded in every build's artifact-manifest.json.
+#
+# `runtime` packages are installed into the image.
+# `build` packages are installed only to compile the launcher, then purged.
+# `optional-android` packages are NOT installed by default (see docs/android.md).
+
+[runtime]
+# Wayland kiosk session
+sway
+qt6-wayland
+qml6-module-qtquick
+qml6-module-qtquick-controls
+qml6-module-qtquick-layouts
+qml6-module-qtquick-window
+qml6-module-qtquick-shapes
+qml6-module-qtquick-effects
+qml6-module-qtqml
+qml6-module-qtqml-models
+qml6-module-qtqml-workerscript
+qml6-module-qtquick-templates
+qml6-module-qt-labs-settings
+qt6-qpa-plugins
+libqt6svg6
+fonts-inter
+fonts-dejavu-core
+fonts-noto-color-emoji
+
+# Browser and streaming
+chromium
+libwidevinecdm0
+ffmpeg
+gstreamer1.0-tools
+gstreamer1.0-plugins-base
+gstreamer1.0-plugins-good
+gstreamer1.0-plugins-bad
+v4l-utils
+
+# Audio
+pipewire
+pipewire-pulse
+wireplumber
+pulseaudio-utils
+alsa-utils
+
+# Networking
+network-manager
+wpasupplicant
+rfkill
+iw
+iproute2
+bind9-dnsutils
+curl
+ca-certificates
+
+# Display / remote / diagnostics
+wlr-randr
+evtest
+joystick
+procps
+kmod
+util-linux
+libinput-tools
+cec-utils
+
+# System essentials already present in Lite; listed for explicitness.
+python3
+systemd
+dbus
+
+[build]
+build-essential
+cmake
+qt6-base-dev
+qt6-declarative-dev
+pkg-config
+
+[purge]
+build-essential
+cmake
+qt6-base-dev
+qt6-declarative-dev
+pkg-config
+
+[optional-android]
+waydroid

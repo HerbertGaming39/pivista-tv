@@ -1,0 +1,3 @@
+module PiVista
+singleton Theme 1.0 Theme.qml
+singleton AppSettings 1.0 AppSettings.qml

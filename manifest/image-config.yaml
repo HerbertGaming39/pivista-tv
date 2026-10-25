@@ -1,0 +1,52 @@
+# PiVista TV image configuration (descriptive).
+# Machine-readable values live in config/product.env; tests/unit/test_config.py
+# fails the build if these drift apart.
+
+product:
+  name: PiVista TV
+  slug: pivista-tv
+  version: 0.1.0
+  codename: Aurora
+  model: Raspberry Pi 5
+  soc: BCM2712
+  architecture: arm64
+
+base:
+  name: 2026-10-06-raspios-trixie-arm64-lite
+  debian: trixie
+  kernel: "6.18"
+  sha256: 483db18a48da399b5b7022ffae9a07bc6d99daab30e593aedac09b69ff422843
+
+partition_table: dos
+partitions:
+  boot:
+    number: 1
+    size_mb: 512
+    filesystem: vfat
+    label: bootfs
+    mount: /boot/firmware
+  root:
+    number: 2
+    size_gb: 7
+    filesystem: ext4
+    label: rootfs
+    mount: /
+    grow_on_first_boot: true
+
+boot:
+  kernel: kernel_2712.img
+  device_tree: bcm2712-rpi-5-b.dtb
+  bootloader: on-board EEPROM (not in image)
+  cmdline_extra: quiet loglevel=3 vt.global_cursor_default=0
+
+session:
+  compositor: sway
+  launcher: /usr/bin/pivista-launcher
+  user: pivista
+  uid: 1000
+  service: pivista-session.service
+
+artifacts:
+  image: pivista-tv-0.1.0-pi5-arm64.img.xz
+  checksum: sha256
+  manifest: pivista-tv-0.1.0-pi5-arm64.manifest.json

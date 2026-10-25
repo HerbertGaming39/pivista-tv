@@ -1,0 +1,31 @@
+[Unit]
+Description=PiVista TV control service
+Documentation=file:///usr/share/doc/pivista/README.md
+After=network.target NetworkManager.service
+Before=pivista-session.service
+ConditionPathExists=/usr/lib/pivista/pivistad.py
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /usr/lib/pivista/pivistad.py --socket /run/pivista/control.sock --group pivista
+Restart=always
+RestartSec=2
+RuntimeDirectory=pivista
+RuntimeDirectoryMode=0750
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+Environment=PYTHONUNBUFFERED=1
+# The daemon needs to apply package updates (writes to /usr and /var), so it
+# cannot run with a read-only filesystem. Its safety comes from a narrow,
+# validated action allowlist and a socket restricted to the session group.
+PrivateTmp=yes
+ProtectHome=read-only
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+# It must not be able to load kernel modules or change boot parameters.
+CapabilityBoundingSet=CAP_CHOWN CAP_DAC_OVERRIDE CAP_FOWNER CAP_KILL CAP_NET_ADMIN CAP_NET_RAW CAP_SETUID CAP_SETGID CAP_SYS_CHROOT
+SystemCallArchitectures=native
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target

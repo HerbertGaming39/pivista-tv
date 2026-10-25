@@ -1,0 +1,9 @@
+# Optional scancode -> Linux keycode mappings, applied at boot by
+# pivista-input.service. Most USB/Bluetooth remotes already emit standard
+# KEY_LEFT/RIGHT/UP/DOWN/ENTER/BACK/HOMEPAGE codes and need no entries here.
+#
+# Find a scancode with:  sudo evtest /dev/input/eventN
+# Find keycode numbers in: /usr/include/linux/input-event-codes.h
+#
+# Example (Amazon Fire TV remote volume rocker on some IR receivers):
+# 0x1c0 172   # KEY_HOMEPAGE

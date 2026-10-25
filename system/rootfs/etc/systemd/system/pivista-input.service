@@ -1,0 +1,13 @@
+[Unit]
+Description=PiVista TV input mapping
+After=local-fs.target
+Before=pivista-session.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/pivista/input-setup.sh
+RemainAfterExit=yes
+StandardOutput=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -10,8 +10,12 @@ mouse_warping none
 
 seat seat0 hide_cursor 1200
 
-# The launcher and streaming windows fill the television.
+# The launcher and streaming windows fill the television.  The launcher is
+# also focused explicitly: on a cold boot a compositor can map the first
+# surface before it becomes the active toplevel, and then remote keys appear to
+# do nothing even though the wizard is drawn.
 for_window [app_id="pivista-launcher"] fullscreen enable
+for_window [app_id="pivista-launcher"] focus
 for_window [app_id="pivista-webapp"] fullscreen enable
 for_window [app_id="chromium"] fullscreen enable
 

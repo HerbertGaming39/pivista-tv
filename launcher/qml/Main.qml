@@ -131,13 +131,33 @@ Window {
         Qt.callLater(focusContent)
     }
 
+    // A cold boot can map the window before the compositor makes it active.
+    // When activation finally arrives, put focus back on the visible wizard
+    // or content instead of leaving keys directed at an unfocused surface.
+    onActiveChanged: {
+        if (!active)
+            return
+        if (wizardVisible)
+            Qt.callLater(wizard.focusStep)
+        else if (!quickOpen)
+            Qt.callLater(focusContent)
+    }
+
     Component.onCompleted: {
         syncNav()
         loadStatus()
-        if (wizardVisible)
-            Qt.callLater(function () { wizard.forceActiveFocus() })
-        else
+        if (wizardVisible) {
+            // Give the overlay active focus, then move it to the first visible
+            // ActionList.  Calling forceActiveFocus() alone steals focus back
+            // from WizardScreen's own queued focusStep(), leaving a plain Item
+            // active that has no arrow/Enter handlers.
+            Qt.callLater(function () {
+                wizard.forceActiveFocus()
+                wizard.focusStep()
+            })
+        } else {
             Qt.callLater(focusContent)
+        }
     }
 
     Connections {
@@ -264,7 +284,8 @@ Window {
                 Qt.callLater(window.focusContent)
                 return
             }
-            if (event.key === Qt.Key_Escape || event.key === Qt.Key_Back) {
+            if (event.key === Qt.Key_Escape || event.key === Qt.Key_Back
+                    || event.key === Qt.Key_Backspace) {
                 if (window.quickOpen) {
                     quickPanel.close()
                     event.accepted = true
@@ -533,6 +554,7 @@ Window {
 
         WizardScreen {
             id: wizard
+            objectName: "wizard"
             onCompleted: {
                 window.view = "home"
                 window.showToast(wizard.setupWarning.length > 0

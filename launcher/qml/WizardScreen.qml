@@ -548,6 +548,7 @@ Item {
 
                 ActionList {
                     id: navActions
+                    objectName: "wizardNav"
                     width: parent.width
                     height: Math.min(Theme.s(128), implicitHeight)
                     actions: [
@@ -606,5 +607,24 @@ Item {
         onCancelled: { close(); networkActions.focusFirst() }
     }
 
-    Keys.onEscapePressed: if (wizard.step > 0) wizard.back()
+    // Focus normally lives on the ActionList for the current step.  This
+    // fallback covers the moment before that queued focus lands, and any
+    // future overlay that leaves active focus on the wizard item itself.
+    Keys.onPressed: function (event) {
+        if (event.key === Qt.Key_Escape || event.key === Qt.Key_Back
+                || event.key === Qt.Key_Backspace) {
+            if (wizard.step > 0) wizard.back()
+            else navActions.focusAt(0)
+            event.accepted = true
+        } else if (event.key === Qt.Key_Up || event.key === Qt.Key_Down) {
+            const delta = event.key === Qt.Key_Down ? 1 : -1
+            navActions.focusAt(navActions.currentIndex + delta)
+            event.accepted = true
+        } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter
+                   || event.key === Qt.Key_Select) {
+            navActions.focusAt(navActions.currentIndex)
+            navActions.triggered(navActions.currentIndex)
+            event.accepted = true
+        }
+    }
 }

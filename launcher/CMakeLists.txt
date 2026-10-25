@@ -49,4 +49,22 @@ if(PIVISTA_BUILD_TESTS)
     target_include_directories(pivista-home-tests PRIVATE src)
     target_link_libraries(pivista-home-tests PRIVATE Qt6::Core Qt6::Network Qt6::Test)
     add_test(NAME launcher-home COMMAND pivista-home-tests)
+
+    add_executable(pivista-wizard-tests
+        tests/test_wizard_focus.cpp
+        src/appcatalog.cpp
+        src/appcatalog.h
+        src/controlclient.cpp
+        src/controlclient.h
+        src/homecontrol.cpp
+        src/homecontrol.h
+    )
+    target_include_directories(pivista-wizard-tests PRIVATE src)
+    target_compile_definitions(pivista-wizard-tests PRIVATE
+        PIVISTA_QML_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml"
+    )
+    target_link_libraries(pivista-wizard-tests PRIVATE
+        Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::Network Qt6::Test
+    )
+    add_test(NAME launcher-wizard COMMAND pivista-wizard-tests)
 endif()

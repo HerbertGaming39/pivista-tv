@@ -38,6 +38,13 @@ Item {
 
         Keys.onReturnPressed: if (currentItem) actionList.triggered(list.currentIndex)
         Keys.onEnterPressed: if (currentItem) actionList.triggered(list.currentIndex)
+        // Some TV remotes send KEY_SELECT rather than KEY_ENTER for OK.
+        Keys.onPressed: function (event) {
+            if ((event.key === Qt.Key_Select || event.key === Qt.Key_Space) && currentItem) {
+                actionList.triggered(list.currentIndex)
+                event.accepted = true
+            }
+        }
         Keys.onUpPressed: {
             if (list.currentIndex > 0)
                 list.currentIndex--

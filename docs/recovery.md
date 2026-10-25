@@ -58,6 +58,31 @@ password. This bypasses the appliance's security; revert it afterwards.
 
 This is an offline/physical-access recovery path, not a supported login.
 
+## The setup wizard is on screen but keys do nothing
+
+This is nearly always an input-path problem, not a frozen launcher.
+
+1. **A television remote alone will not work.** The LG/Samsung/etc. remote
+   talks to its own TV over HDMI-CEC. `cec-utils` is present, but this release
+   does not run a CEC-to-keyboard bridge, so the Pi never sees those buttons.
+   Use a USB keyboard, a USB/IR remote, or a USB receiver.
+2. **Plug the keyboard into the Pi, not the television.** A keyboard in the
+   TV's USB port controls the TV. A Bluetooth keyboard also cannot be used:
+   the image has no Bluetooth pairing screen. A wireless keyboard with its own
+   USB dongle is fine; put the dongle in the Pi.
+3. **Wake the launcher first.** Press **Home** once (the sway binding also
+   focuses the launcher), then **Escape** once, then use the arrows and Enter.
+   Escape moves focus from the wizard overlay to its visible button list.
+4. **Check that the Pi sees the keyboard.** Press **Ctrl+Alt+F2**. A text login
+   prompt appearing proves the keyboard reaches the Pi (the accounts are
+   locked, so you cannot log in). If nothing appears, try another USB port, a
+   wired keyboard, and boot with the keyboard already connected.
+5. **Blank/black screen instead?** See the previous section; that is a display
+   or compositor failure, not input.
+
+PiVista deliberately has no SSH server. An address that worked for an earlier
+Raspberry Pi OS card is not reachable after that card is replaced.
+
 ## The launcher crashes or restarts in a loop
 
 `pivista-session.service` restarts sway if sway itself exits, and

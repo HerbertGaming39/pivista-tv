@@ -43,6 +43,19 @@ def git_value(project: str, *args: str) -> str | None:
         return None
 
 
+def git_dirty(project: str) -> bool | None:
+    """Return False for a clean tree instead of collapsing it with 'unknown'."""
+    try:
+        out = subprocess.run(
+            ["git", "-C", project, "status", "--porcelain", "--", ".",
+             ":(exclude)releases/*.manifest.json"],
+            check=True, capture_output=True, text=True, timeout=10,
+        )
+        return bool(out.stdout.strip())
+    except (subprocess.SubprocessError, OSError):
+        return None
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--image", required=True)
@@ -68,8 +81,7 @@ def main() -> int:
     now = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0)
     commit = git_value(str(project), "rev-parse", "HEAD")
     # Ignore the manifest itself: writing it is not a source-tree change.
-    dirty = git_value(str(project), "status", "--porcelain", "--", ".",
-                      ":(exclude)releases/*.manifest.json")
+    dirty = git_dirty(str(project))
     manifest = {
         "schema": 1,
         "product": env.get("PIVISTA_NAME", "PiVista TV"),
@@ -106,7 +118,7 @@ def main() -> int:
             "builder": "build.sh",
             "host_arch": os.uname().machine,
             "source_commit": commit,
-            "source_dirty": bool(dirty) if dirty is not None else None,
+            "source_dirty": dirty,
             "build_log_sha256": sha256(pathlib.Path(args.log)) if pathlib.Path(args.log).is_file() else None,
             "reproducibility": "pinned inputs and deterministic configuration; not bit-for-bit reproducible",
         },

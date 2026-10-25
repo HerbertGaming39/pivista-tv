@@ -79,7 +79,7 @@ Status vocabulary:
 | Clean build instructions | Verified — `build.sh check` |
 | Dependency pinning | Verified — [manifest/base-image.lock](manifest/base-image.lock) |
 | Build logs | Implemented — `build/logs/build-<id>.log` |
-| Automated tests | Verified — 37 host Python tests, 6 launcher/Qt cases, 19 offscreen screen renders and 46 image checks, all passing |
+| Automated tests | Verified — 38 host Python tests, 6 launcher/Qt cases, 19 offscreen screen renders and 46 image checks, all passing |
 | Image checksums | Verified — `.sha256` matches; `xz -t` passes |
 | Software licence notices | Implemented — `/usr/share/doc` retained in image |
 | Update and recovery documentation | Verified — [docs/recovery.md](docs/recovery.md) |

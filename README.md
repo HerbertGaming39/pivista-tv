@@ -57,7 +57,7 @@ Implemented and covered by automated tests:
 - NetworkManager/PipeWire integration code paths
 - Image structure validation and package manifest
 
-Automated tests in this build: **37 host Python tests, 6 launcher/Qt cases, 19
+Automated tests in this build: **38 host Python tests, 6 launcher/Qt cases, 19
 offscreen screen renders and 46/46 image checks**. The image is structurally
 validated, not booted.
 
@@ -115,7 +115,7 @@ boot it; the checks below are structural and host-side only.
 | Size | 1,290,377,464 bytes (1.20 GiB compressed) |
 | SHA-256 | `576f4a056fb405cae2f800bf581ba91099726b9a8a43d93659f78d8f8cc1be82` |
 | Build ID | `20261025T133307Z` |
-| Host tests | 37 host Python tests, 6 launcher/Qt cases, 19 offscreen screen renders, 46/46 image checks (this build) |
+| Host tests | 38 host Python tests, 6 launcher/Qt cases, 19 offscreen screen renders, 46/46 image checks (this build) |
 | Hardware test checklist | [docs/hardware-test.md](docs/hardware-test.md) |
 
 Verify the checksum before writing anything:

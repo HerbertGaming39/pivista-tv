@@ -41,9 +41,7 @@ reads or writes a real Pi configuration. To see the **first-boot wizard again**:
 The window opens at 1280x720 by default. For the 1080p layout:
 
 ```powershell
-$env:PIVISTA_UI_WIDTH = "1920"
-$env:PIVISTA_UI_HEIGHT = "1080"
-.\tools\windows-preview.ps1
+.\tools\windows-preview.ps1 -Width 1920 -Height 1080
 ```
 
 ## What to test
@@ -94,5 +92,5 @@ alternatives if one does not arrive.
 | `WSL distro 'Ubuntu' is not available` | Install WSL2 Ubuntu, or run `.\tools\windows-preview.ps1 -Distro <name>` |
 | `Qt 6 development packages are not installed` | Run the `apt-get install` command above inside WSL |
 | `no WSLg display` | Update Windows/WSL (`wsl --update`) and run from a Windows desktop session, not a remote shell without WSLg |
-| A blank or oversized window | Try `-Reset`; set `PIVISTA_UI_WIDTH=1280` and `PIVISTA_UI_HEIGHT=720` |
+| A blank or oversized window | Try `-Reset`, or pass `-Width 1280 -Height 720` |
 | The build cache complains about a different path | Remove `build/launcher-wsl-preview/` and run again |

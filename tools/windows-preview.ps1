@@ -6,10 +6,13 @@
 #
 #   .\tools\windows-preview.ps1
 #   .\tools\windows-preview.ps1 -Reset
+#   .\tools\windows-preview.ps1 -Width 1920 -Height 1080
 #
 param(
     [switch]$Reset,
-    [string]$Distro = "Ubuntu"
+    [string]$Distro = "Ubuntu",
+    [int]$Width = 1280,
+    [int]$Height = 720
 )
 
 $ErrorActionPreference = "Stop"
@@ -27,7 +30,7 @@ if (-not ($distros -contains $Distro)) {
     throw "WSL distro '$Distro' is not available. Install WSL2 with Ubuntu, or pass -Distro <name>."
 }
 
-$arguments = @()
+$arguments = @("--width", "$Width", "--height", "$Height")
 if ($Reset) {
     $arguments += "--reset"
 }

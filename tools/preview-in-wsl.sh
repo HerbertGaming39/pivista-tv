@@ -16,11 +16,21 @@ BUILD="$PROJECT/build/launcher-wsl-preview"
 PREVIEW_HOME="$PROJECT/build/preview-home"
 
 reset=0
-case "${1:-}" in
-    --reset) reset=1 ;;
-    "") ;;
-    *) echo "usage: $0 [--reset]" >&2; exit 2 ;;
-esac
+width="${PIVISTA_UI_WIDTH:-1280}"
+height="${PIVISTA_UI_HEIGHT:-720}"
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --reset) reset=1 ;;
+        --width)
+            [ $# -ge 2 ] || { echo "preview: --width needs a value" >&2; exit 2; }
+            width="$2"; shift ;;
+        --height)
+            [ $# -ge 2 ] || { echo "preview: --height needs a value" >&2; exit 2; }
+            height="$2"; shift ;;
+        *) echo "usage: $0 [--reset] [--width N] [--height N]" >&2; exit 2 ;;
+    esac
+    shift
+done
 
 if ! command -v cmake >/dev/null 2>&1; then
     echo "preview: cmake is not installed in WSL" >&2
@@ -65,8 +75,8 @@ export XDG_DATA_HOME="$PREVIEW_HOME/.local/share"
 export XDG_RUNTIME_DIR="$PREVIEW_RUNTIME"
 export PIVISTA_QML_DIR="$PROJECT/launcher/qml"
 export PIVISTA_WEBAPP_CATALOG="$PROJECT/applications/web/catalog.json"
-export PIVISTA_UI_WIDTH="${PIVISTA_UI_WIDTH:-1280}"
-export PIVISTA_UI_HEIGHT="${PIVISTA_UI_HEIGHT:-720}"
+export PIVISTA_UI_WIDTH="$width"
+export PIVISTA_UI_HEIGHT="$height"
 
 # WSLg exposes both an X server and Wayland.  XCB is the most predictable for
 # a normal window on older Windows builds; fall back to Wayland when needed.

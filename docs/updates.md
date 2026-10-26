@@ -8,7 +8,7 @@ PiVista TV separates three things that are often bundled together:
 | Debian/Raspberry Pi OS packages | `apt` from the image's pinned sources | No A/B rollback; reflash on failure | No forced reboot; reboot when the user chooses |
 | Complete disk image (kernel, bootloader config, partition layout) | Reflash | Previous image file, if kept | Yes, by definition |
 
-This document describes what is actually implemented in 0.3.1 and what is
+This document describes what is actually implemented in 0.3.2 and what is
 deliberately not claimed.
 
 ## Version model
@@ -157,13 +157,13 @@ nothing on that device to verify or apply an update. This is not a signature
 problem and there is no safe way to inject a privileged updater from the
 launcher.
 
-The safe migration is a one-time reflash to the 0.3.1 image:
+The safe migration is a one-time reflash to the 0.3.2 image:
 
 1. Keep the older `.img.xz`; it remains the known-good fallback.
-2. Download the 0.3.1 image and verify its published SHA-256.
+2. Download the 0.3.2 image and verify its published SHA-256.
 3. Optionally copy off user data from the card first: `/home/pivista/.config/`
    and `/var/lib/pivista/`.
-4. Flash 0.3.1, complete first boot, then restore the two directories if wanted.
+4. Flash 0.3.2, complete first boot, then restore the two directories if wanted.
 5. From 0.3.1 onward, launcher updates work through Settings.
 
 This is a platform migration, not a downgrade/upgrade of the application. Do
@@ -239,10 +239,10 @@ record its public fingerprint in the release notes.
 # On the build host, with the image mounted at /mnt/pivista:
 sudo tools/build-app-update.py \
   --image-root /mnt/pivista \
-  --version 0.3.1 \
+  --version 0.3.2 \
   --key /secure/offline/update-signing-key.pem \
-  --notes-file build/logs/update-notes-0.3.1.md \
-  --out releases/update-0.3.1
+  --notes-file build/logs/update-notes-0.3.2.md \
+  --out releases/update-0.3.2
 ```
 
 The tool writes the deterministic `tar.xz`, signed manifest, signature,
@@ -255,8 +255,8 @@ Verify before publishing:
 ```bash
 openssl pkeyutl -verify -pubin \
   -inkey system/rootfs/etc/pivista/update-pubkey.pem \
-  -rawin -in releases/update-0.3.1/pivista-update.json \
-  -sigfile releases/update-0.3.1/pivista-update.json.sig
+  -rawin -in releases/update-0.3.2/pivista-update.json \
+  -sigfile releases/update-0.3.2/pivista-update.json.sig
 ```
 
 Rotation: publish a new launcher build containing the new public key first,

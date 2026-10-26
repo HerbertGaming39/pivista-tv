@@ -45,21 +45,28 @@ Qt Test, runs guiless on the host:
 - the production home screen moves Up from the featured banner to the header,
   then right through the sections and into Settings, so a remote cannot be
   trapped between the banner and the first content row;
+- the streaming category chips are reachable with Right/Left and render focus,
+  so Media is not a dead end for a remote;
+- Settings opens from Home using only arrow/Enter/Back keys, and the Input page
+  opens and returns without losing focus;
+- the wizard network step offers a single scan action, and Down moves between
+  the two explicit choices instead of silently selecting the second one;
 - finishing the first-boot wizard loads Home and puts focus on the featured
   banner, so unloading the content behind the wizard does not strand input.
 
 ```bash
-tests/run-launcher-tests.sh        # builds and runs all four test executables via CTest
+tests/run-launcher-tests.sh        # builds and runs all five test executables via CTest
 ```
 
 ### QML loading and rendering (`tests/ui/render_screens.sh`)
 
-`tests/run-launcher-tests.sh` renders 29 offscreen screens and fails on QML
+`tests/run-launcher-tests.sh` renders 37 offscreen screens and fails on QML
 runtime errors, a missing/wrongly-sized PNG, or a screen that is blank below the
 header. It covers Home (including the featured banner and rows), Apps, Games,
 Media, Search and Settings at 1080p and 720p, app details at both sizes, the
-appearance and updates pages at both sizes, Home at 4K, plus every first-boot
-wizard page at 720p and the welcome page at 1080p. The wizard override is development-only
+appearance, input, Bluetooth, date/time, updates and remote-support pages at both
+sizes, Home at 4K, plus every first-boot wizard page at 720p and the welcome page
+at 1080p. The wizard override is development-only
 (`PIVISTA_UI_WIZARD_STEP`); it is not read from device configuration.
 
 The blank-content check exists because the first Media implementation was the
@@ -101,11 +108,13 @@ Mounts the sealed image read-only and checks:
 - required product files (launcher, daemon, QML, web catalog, units, build info);
 - `pivista` UID/GID 1000, locked password, no `pi` account;
 - cloud-init masked plus `/etc/cloud/cloud-init.disabled`, seed files removed;
-- SSH host-key regeneration masked, no `/etc/ssh` directory;
+- SSH and VNC installed but disabled, no host keys shipped, `AllowUsers support`
+  and `PermitRootLogin no` in the drop-in, the `support` account locked with no
+  sudo membership, `/etc/pivista/remote` root-only and no password file;
 - units enabled for `graphical.target`/`multi-user.target` and the vendor root
   filesystem resize unit;
 - session config directories owned by UID/GID 1000 with no world access;
-- empty `machine-id`, no SSH server installed, no credentials in product config or
+- empty `machine-id`, no credentials in product config or
   user data (`/etc/pivista`, `/etc/NetworkManager/system-connections`,
   `/home`, `/root`);
 - aarch64 launcher and kernel (the gzip-compressed `kernel_2712.img` is
@@ -113,7 +122,9 @@ Mounts the sealed image read-only and checks:
 - launcher version metadata and the installed Ed25519 update public key (not
   group/other writable).
 
-The reference 0.3.1 image validation reports **51 passed, 0 failed**.
+Image validation always runs every check, so a missing file is reported as a
+failure instead of aborting the run. The reference 0.3.2 image validation reports
+**61 passed, 0 failed**.
 
 ```bash
 sudo python3 tests/image/validate_image.py --image /var/tmp/pivista-build/work.img

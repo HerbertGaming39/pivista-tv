@@ -1,0 +1,25 @@
+[Unit]
+Description=PiVista TV local VNC server
+Documentation=file:///usr/share/doc/pivista/remote-access.md
+After=pivista-session.service
+Wants=pivista-session.service
+ConditionPathExists=/usr/bin/wayvnc
+
+[Service]
+Type=simple
+User=pivista
+Group=pivista
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+Environment=XDG_SESSION_TYPE=wayland
+Environment=HOME=/home/pivista
+ExecStart=/usr/lib/pivista/start-vnc.sh
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=yes
+PrivateTmp=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -30,6 +30,7 @@ Item {
         property bool showApps: true
         property string startScreen: "home"
         property bool clock24h: true
+        property bool clockSeconds: false
     }
 
     property alias setupComplete: storage.setupComplete
@@ -49,4 +50,5 @@ Item {
     property alias showApps: storage.showApps
     property alias startScreen: storage.startScreen
     property alias clock24h: storage.clock24h
+    property alias clockSeconds: storage.clockSeconds
 }

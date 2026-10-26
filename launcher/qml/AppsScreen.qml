@@ -2,6 +2,7 @@ import QtQuick
 
 Item {
     id: appsScreen
+    objectName: "appsScreen"
 
     property string mode: "apps"          // apps | games
     property string filter: "All"
@@ -111,6 +112,7 @@ Item {
 
     ListView {
         id: chips
+        objectName: "categoryChips"
         anchors.top: title.bottom
         anchors.topMargin: Theme.s(16)
         width: parent.width
@@ -129,7 +131,10 @@ Item {
             }
         }
         Keys.onUpPressed: appsScreen.requestHeaderFocus()
+        Keys.onLeftPressed: if (currentIndex > 0) currentIndex--
+        Keys.onRightPressed: if (currentIndex < count - 1) currentIndex++
         Keys.onReturnPressed: if (currentItem) currentItem.activate()
+        Keys.onEnterPressed: if (currentItem) currentItem.activate()
 
         delegate: Rectangle {
             id: chip
@@ -138,8 +143,14 @@ Item {
             height: Theme.s(38)
             radius: height / 2
             color: isSelected ? Theme.accent : Theme.surface
-            border.width: isSelected ? 0 : Theme.s(1)
-            border.color: Qt.rgba(1, 1, 1, 0.08)
+            border.width: (chips.activeFocus && ListView.isCurrentItem) ? Theme.s(2)
+                          : (isSelected ? 0 : Theme.s(1))
+            border.color: (chips.activeFocus && ListView.isCurrentItem) ? Theme.text
+                          : Qt.rgba(1, 1, 1, 0.08)
+
+            Behavior on color {
+                ColorAnimation { duration: Theme.animShort }
+            }
 
             function activate() {
                 appsScreen.filter = modelData
@@ -168,6 +179,7 @@ Item {
 
     GridView {
         id: grid
+        objectName: "appsGrid"
         anchors.top: appsScreen.gamesMode ? title.bottom : chips.bottom
         anchors.topMargin: Theme.s(22)
         anchors.bottom: hint.top

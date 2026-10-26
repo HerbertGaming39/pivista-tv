@@ -5,7 +5,7 @@
 product:
   name: PiVista TV
   slug: pivista-tv
-  version: 0.3.1
+  version: 0.3.2
   codename: Cascade
   model: Raspberry Pi 5
   soc: BCM2712
@@ -47,6 +47,6 @@ session:
   service: pivista-session.service
 
 artifacts:
-  image: pivista-tv-0.3.1-pi5-arm64.img.xz
+  image: pivista-tv-0.3.2-pi5-arm64.img.xz
   checksum: sha256
-  manifest: pivista-tv-0.3.1-pi5-arm64.manifest.json
+  manifest: pivista-tv-0.3.2-pi5-arm64.manifest.json

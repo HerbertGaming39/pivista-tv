@@ -70,6 +70,11 @@ Item {
                 ColorAnimation { duration: Theme.animShort }
             }
 
+            scale: (list.activeFocus && ListView.isCurrentItem) ? 1.012 : 1.0
+            Behavior on scale {
+                NumberAnimation { duration: Theme.animShort; easing.type: Easing.OutCubic }
+            }
+
             Text {
                 anchors.left: parent.left
                 anchors.leftMargin: Theme.s(18)

@@ -112,8 +112,16 @@ render settings-1080p settings 1920 1080 dev
 render settings-720p settings 1280 720 dev
 render settings-appearance-1080p settings 1920 1080 dev "" appearance
 render settings-appearance-720p settings 1280 720 dev "" appearance
+render settings-input-1080p settings 1920 1080 dev "" input
+render settings-input-720p settings 1280 720 dev "" input
+render settings-bluetooth-1080p settings 1920 1080 dev "" bluetooth
+render settings-bluetooth-720p settings 1280 720 dev "" bluetooth
+render settings-datetime-1080p settings 1920 1080 dev "" datetime
+render settings-datetime-720p settings 1280 720 dev "" datetime
 render settings-updates-1080p settings 1920 1080 dev "" updates
 render settings-updates-720p settings 1280 720 dev "" updates
+render settings-remote-1080p settings 1920 1080 dev "" remote
+render settings-remote-720p settings 1280 720 dev "" remote
 render wizard-1080p home 1920 1080 wizard 0
 render wizard-1080p-step1 home 1920 1080 wizard 1
 for step in 0 1 2 3 4 5 6 7; do

@@ -2,6 +2,7 @@ import QtQuick
 
 Item {
     id: settings
+    objectName: "settingsScreen"
 
     property string page: ""
     property var pending: ({})
@@ -10,9 +11,14 @@ Item {
 
     property var net: ({})
     property var netTest: ({})
+    property var remote: ({})
     property var wifi: []
     property var audio: ({})
     property var display: ({})
+    property var input: ({})
+    property var bluetooth: ({})
+    property var bluetoothDevices: []
+    property bool bluetoothScanning: false
     property var sysInfo: ({})
     property var sysStatus: ({})
     property var update: ({})
@@ -29,7 +35,11 @@ Item {
 
     readonly property var sections: [
         { id: "network", title: "Network", subtitle: "Wi-Fi, Ethernet and connectivity" },
+        { id: "datetime", title: "Time and date", subtitle: "Time zone and clock format" },
+        { id: "remote", title: "Remote support", subtitle: "SSH and VNC access" },
         { id: "display", title: "Display", subtitle: "Resolution, interface size and idle screen" },
+        { id: "input", title: "Input", subtitle: "Keyboards, remotes, key test and CEC" },
+        { id: "bluetooth", title: "Bluetooth", subtitle: "Pair a wireless remote" },
         { id: "appearance", title: "Appearance", subtitle: "Theme, wallpaper, home rows and clock" },
         { id: "audio", title: "Audio", subtitle: "HDMI output, volume and speaker test" },
         { id: "applications", title: "Applications", subtitle: "Favourites, hidden apps and web shortcuts" },
@@ -72,6 +82,7 @@ Item {
     function loadNetwork() {
         api("network.status", {}, function (data) { net = data })
         api("network.connectivity", {}, function (data) { netTest = data }, 20000)
+        loadSystem()
     }
 
     function testConnectivity() {
@@ -127,8 +138,218 @@ Item {
         api("display.status", {}, function (data) { display = data })
     }
 
+    readonly property var timezoneOptions: [
+        "Europe/Warsaw", "Europe/London", "Europe/Berlin", "Europe/Paris",
+        "Europe/Madrid", "Europe/Rome", "Europe/Kyiv", "UTC", "America/New_York"
+    ]
+
+    function timezoneItems() {
+        const current = sysInfo.timezone || ""
+        return timezoneOptions.map(function (zone) {
+            return { label: zone, detail: zone === current ? "current" : "" }
+        })
+    }
+
+    function applyTimezone(zone) {
+        flash("Applying time zone…", false)
+        api("system.set_timezone", { timezone: zone }, function (data) {
+            sysInfo.timezone = data.timezone || zone
+            flash("Time zone set to " + (data.timezone || zone), false)
+        }, 15000, function (message) { flash(message, true) })
+    }
+
+    function loadBluetooth() {
+        api("bluetooth.status", {}, function (data) {
+            bluetooth = data
+            if (data.error)
+                flash(data.error, true)
+        }, 15000, function (message) {
+            bluetooth = ({ available: false, powered: false, paired: [], error: message })
+            flash(message, true)
+        })
+    }
+
+    function bluetoothActionItems() {
+        const list = [
+            {
+                id: "scan",
+                label: bluetoothScanning ? "Scanning for Bluetooth devices…" : "Scan for Bluetooth remotes",
+                detail: bluetoothScanning ? "put the remote in pairing mode" : "about 8 seconds"
+            },
+            { id: "refresh", label: "Refresh Bluetooth status", detail: bluetooth.available ? "adapter ready" : "unavailable" }
+        ]
+        const seen = {}
+        ;(bluetooth.paired || []).forEach(function (device) {
+            seen[device.address] = true
+            list.push({
+                id: "forget:" + device.address,
+                label: device.name,
+                detail: "paired \u00b7 Enter to forget"
+            })
+        })
+        ;(bluetoothDevices || []).forEach(function (device) {
+            if (seen[device.address])
+                return
+            list.push({
+                id: "pair:" + device.address,
+                label: device.name,
+                detail: "found \u00b7 Enter to pair"
+            })
+        })
+        return list
+    }
+
+    function scanBluetooth() {
+        if (bluetoothScanning)
+            return
+        bluetoothScanning = true
+        flash("Scanning for Bluetooth devices…", false)
+        api("bluetooth.scan", { confirm: true }, function (data) {
+            bluetoothScanning = false
+            bluetoothDevices = data.devices || []
+            bluetooth.paired = data.paired || bluetooth.paired || []
+            flash(bluetoothDevices.length + " Bluetooth device" + (bluetoothDevices.length === 1 ? "" : "s") + " found", false)
+            if (bluetoothDevices.length > 0)
+                bluetoothActions.focusAt(2)
+        }, 45000, function (message) {
+            bluetoothScanning = false
+            flash(message, true)
+        })
+    }
+
+    function handleBluetoothAction(index) {
+        const item = bluetoothActionItems()[index]
+        if (!item)
+            return
+        if (item.id === "scan") {
+            scanBluetooth()
+        } else if (item.id === "refresh") {
+            bluetoothDevices = []
+            loadBluetooth()
+        } else if (item.id.indexOf("pair:") === 0) {
+            const address = item.id.slice(5)
+            askConfirm("Pair " + item.label,
+                "Put the remote in pairing mode, then choose Pair. Some remotes require a PIN; those cannot be paired from this screen yet. VNC/SSH are unrelated and stay off.",
+                "Pair", false, function () {
+                    flash("Pairing " + item.label + "…", false)
+                    api("bluetooth.pair", { confirm: true, address: address }, function (data) {
+                        bluetooth = data
+                        flash(item.label + " paired", false)
+                        loadBluetooth()
+                    }, 60000, function (message) { flash(message, true) })
+                })
+        } else if (item.id.indexOf("forget:") === 0) {
+            const address = item.id.slice(7)
+            askConfirm("Forget " + item.label,
+                "Remove this device from PiVista? The remote will need to be paired again.",
+                "Forget", true, function () {
+                    api("bluetooth.forget", { confirm: true, address: address }, function (data) {
+                        bluetooth = data
+                        flash(item.label + " forgotten", false)
+                    }, 30000, function (message) { flash(message, true) })
+                })
+        }
+    }
+
+    function loadInput() {
+        api("input.status", {}, function (data) {
+            input = data
+        }, 15000, function (message) {
+            input = ({ devices: [], keyboard_count: 0, remote_count: 0, cec: {} })
+            flash(message, true)
+        })
+    }
+
+    function inputDeviceItems() {
+        const devices = input.devices || []
+        return devices.map(function (device) {
+            return {
+                label: device.name,
+                detail: (device.kind === "remote" ? "remote" : (device.kind === "keyboard" ? "keyboard" : "input"))
+                        + " \u00b7 " + device.event
+            }
+        })
+    }
+
     function loadAudio() {
         api("audio.status", {}, function (data) { audio = data })
+    }
+
+    function loadRemote() {
+        api("remote.status", {}, function (data) { remote = data })
+    }
+
+    function remoteActionItems() {
+        const list = [{ id: "refresh", label: "Refresh remote status", detail: remote.ssh_active ? "SSH online" : "local only" }]
+        if (remote.ssh_enabled) {
+            list.push({ id: "ssh_disable", label: "Disable SSH", detail: "lock support and discard password" })
+            list.push({ id: "ssh_rotate", label: "New SSH password", detail: "existing sessions stay connected" })
+        } else {
+            list.push({ id: "ssh_enable", label: "Enable SSH", detail: "user support · random password" })
+        }
+        if (remote.vnc_enabled) {
+            list.push({ id: "vnc_disable", label: "Disable VNC", detail: "stop the localhost server" })
+        } else {
+            list.push({ id: "vnc_enable", label: "Enable VNC", detail: remote.ssh_enabled ? "localhost via SSH tunnel" : "enable SSH first" })
+        }
+        return list
+    }
+
+    function handleRemoteAction(index) {
+        const item = remoteActionItems()[index]
+        if (!item) return
+        if (item.id === "refresh") {
+            loadRemote()
+        } else if (item.id === "ssh_enable") {
+            askConfirm("Enable SSH remote support",
+                "This starts the SSH server on port 22 for the non-sudo support user. A random password appears on this page. Only use it on a trusted network.",
+                "Enable SSH", true, function () {
+                    api("remote.ssh.enable", { confirm: true }, function (data) {
+                        remote = data
+                        flash("SSH enabled for support@" + (remote.ip || remote.hostname || "this Pi"), false)
+                    }, 30000, function (message) { flash(message, true) })
+                })
+        } else if (item.id === "ssh_disable") {
+            askConfirm("Disable SSH remote support",
+                "This stops SSH, locks the support account and discards its password. Any VNC tunnel over SSH will disconnect.",
+                "Disable SSH", true, function () {
+                    api("remote.ssh.disable", { confirm: true }, function (data) {
+                        remote = data
+                        flash("SSH disabled", false)
+                    }, 30000, function (message) { flash(message, true) })
+                })
+        } else if (item.id === "ssh_rotate") {
+            askConfirm("Replace the SSH password",
+                "A new password appears on this page. Existing SSH sessions are not disconnected.",
+                "Replace password", false, function () {
+                    api("remote.ssh.rotate", { confirm: true }, function (data) {
+                        remote = data
+                        flash("SSH password replaced", false)
+                    }, 30000, function (message) { flash(message, true) })
+                })
+        } else if (item.id === "vnc_enable") {
+            if (!remote.ssh_enabled) {
+                flash("Enable SSH first; VNC is only reachable through the SSH tunnel.", true)
+                return
+            }
+            askConfirm("Enable local VNC",
+                "VNC listens only on 127.0.0.1:5900. Connect with an SSH local forward; no VNC port is exposed directly to the network.",
+                "Enable VNC", false, function () {
+                    api("remote.vnc.enable", { confirm: true }, function (data) {
+                        remote = data
+                        flash("VNC listening on 127.0.0.1:5900", false)
+                    }, 30000, function (message) { flash(message, true) })
+                })
+        } else if (item.id === "vnc_disable") {
+            askConfirm("Disable VNC",
+                "Stop the localhost VNC server. The SSH server stays enabled.",
+                "Disable VNC", false, function () {
+                    api("remote.vnc.disable", { confirm: true }, function (data) {
+                        remote = data
+                        flash("VNC disabled", false)
+                    }, 30000, function (message) { flash(message, true) })
+                })
+        }
     }
 
     function loadSystem() {
@@ -281,8 +502,12 @@ Item {
 
     function loadPage() {
         if (page === "network") loadNetwork()
+        else if (page === "datetime") loadSystem()
         else if (page === "display") loadDisplay()
+        else if (page === "input") loadInput()
+        else if (page === "bluetooth") loadBluetooth()
         else if (page === "audio") loadAudio()
+        else if (page === "remote") loadRemote()
         else if (page === "system") loadSystem()
         else if (page === "updates") { loadUpdate(); loadAppUpdate(); loadUpdateHistory() }
         else if (page === "privacy") { loadAndroid() }
@@ -303,9 +528,13 @@ Item {
     function focusPage() {
         let focused = false
         if (page === "network") focused = netActions.focusFirst()
+        else if (page === "datetime") focused = timezoneActions.focusFirst()
         else if (page === "display") focused = displayModes.focusFirst()
+        else if (page === "input") focused = inputActions.focusFirst()
+        else if (page === "bluetooth") focused = bluetoothActions.focusFirst()
         else if (page === "appearance") focused = themeActions.focusFirst()
         else if (page === "audio") focused = audioActions.focusFirst()
+        else if (page === "remote") focused = remoteActions.focusFirst()
         else if (page === "applications") focused = appActions.focusFirst()
         else if (page === "system") focused = systemActions.focusFirst()
         else if (page === "updates") focused = updateActions.focusFirst()
@@ -393,6 +622,7 @@ Item {
     // ---------------------------------------------------------------- root
     ListView {
         id: sectionsList
+        objectName: "settingsSections"
         anchors.fill: parent
         visible: settings.page === ""
         model: settings.sections
@@ -473,16 +703,19 @@ Item {
 
             Text { text: "Network"; color: Theme.text; font.family: Theme.fontFamily; font.pixelSize: Theme.s(26); font.weight: Font.DemiBold }
             InfoLine { width: parent.width; label: "Connection"; value: settings.net.connection ? settings.net.connection : "not connected" }
+            InfoLine { width: parent.width; label: "Hostname"; value: settings.sysInfo.hostname ? settings.sysInfo.hostname : "—" }
             InfoLine { width: parent.width; label: "Address"; value: settings.net.ip ? settings.net.ip : "—" }
             InfoLine { width: parent.width; label: "Internet"; value: settings.netTest.online ? "reachable" : (settings.netTest.nm ? settings.netTest.nm : "not tested") }
 
             ActionList {
                 id: netActions
+                objectName: "netActions"
                 width: parent.width
                 actions: [
                     { label: "Scan for Wi-Fi networks", detail: "find nearby networks" },
                     { label: settings.net.wifi_connected ? "Disconnect Wi-Fi" : "Wi-Fi not connected", detail: settings.net.wifi_connected ? settings.net.connection : "connect first" },
                     { label: "Test internet connection", detail: "DNS and NetworkManager" },
+                    { label: "Change device name", detail: settings.sysInfo.hostname || "hostname" },
                     { label: "Refresh status", detail: "" }
                 ]
                 onTriggered: function (index) {
@@ -506,8 +739,12 @@ Item {
                         }, 30000, function (m) { settings.flash(m, true) })
                     } else if (index === 2) {
                         settings.testConnectivity()
+                    } else if (index === 3) {
+                        hostnameDialog.initialText = settings.sysInfo.hostname || ""
+                        hostnameDialog.open()
                     } else {
                         settings.loadNetwork()
+                        settings.loadSystem()
                     }
                 }
                 onNavigateDown: if (wifiActions.actions.length > 0) wifiActions.focusFirst()
@@ -544,6 +781,130 @@ Item {
                 color: Theme.textFaint
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.s(12)
+            }
+        }
+    }
+
+    // ----------------------------------------------------------- date/time
+    Item {
+        id: datetimePage
+        anchors.fill: parent
+        visible: settings.page === "datetime"
+
+        Column {
+            anchors.fill: parent
+            spacing: Theme.s(9)
+
+            Text { text: "Time and date"; color: Theme.text; font.family: Theme.fontFamily; font.pixelSize: Theme.s(26); font.weight: Font.DemiBold }
+            InfoLine { width: parent.width; label: "Time zone"; value: settings.sysInfo.timezone ? settings.sysInfo.timezone : "not set" }
+            InfoLine { width: parent.width; label: "Locale"; value: settings.sysInfo.locale ? settings.sysInfo.locale : "not set" }
+            Text {
+                width: parent.width
+                text: "Changing the time zone also updates the clock in the header. Locale is applied by the first-boot wizard."
+                color: Theme.textFaint
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.s(13)
+                wrapMode: Text.WordWrap
+            }
+
+            Text { text: "Time zone"; color: Theme.textDim; font.family: Theme.fontFamily; font.pixelSize: Theme.s(15); font.weight: Font.DemiBold }
+            ActionList {
+                id: timezoneActions
+                width: parent.width
+                height: Math.min(Theme.s(324), implicitHeight)
+                actions: settings.timezoneItems()
+                onTriggered: function (index) { settings.applyTimezone(settings.timezoneOptions[index]) }
+                onNavigateUp: settings.requestHeaderFocus()
+                onNavigateDown: dateClockActions.focusFirst()
+            }
+
+            Text { text: "Clock"; color: Theme.textDim; font.family: Theme.fontFamily; font.pixelSize: Theme.s(15); font.weight: Font.DemiBold }
+            ActionList {
+                id: dateClockActions
+                width: parent.width
+                height: Theme.s(192)
+                actions: [
+                    { label: "24-hour clock", detail: AppSettings.clock24h ? "current" : "" },
+                    { label: "12-hour clock", detail: AppSettings.clock24h ? "" : "current" },
+                    { label: "Show seconds", detail: AppSettings.clockSeconds ? "on" : "off" }
+                ]
+                onTriggered: function (index) {
+                    if (index === 0 || index === 1)
+                        AppSettings.clock24h = index === 0
+                    else
+                        AppSettings.clockSeconds = !AppSettings.clockSeconds
+                    settings.flash("Clock format updated", false)
+                }
+                onNavigateUp: timezoneActions.focusFirst()
+            }
+        }
+    }
+
+    // -------------------------------------------------------------- remote
+    Item {
+        id: remotePage
+        anchors.fill: parent
+        visible: settings.page === "remote"
+
+        Column {
+            anchors.fill: parent
+            spacing: Theme.s(8)
+
+            Text { text: "Remote support"; color: Theme.text; font.family: Theme.fontFamily; font.pixelSize: Theme.s(26); font.weight: Font.DemiBold }
+            Text {
+                width: parent.width
+                text: "SSH and VNC are off by default. The support account has no sudo. VNC listens only on localhost, so it is reached through an SSH tunnel, not exposed on the network."
+                color: Theme.textFaint
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.s(13)
+                wrapMode: Text.WordWrap
+            }
+
+            InfoLine { width: parent.width; label: "Host"; value: (settings.remote.hostname || "this Pi") + (settings.remote.ip ? " · " + settings.remote.ip : "") }
+            InfoLine { width: parent.width; label: "SSH"; value: settings.remote.ssh_enabled ? (settings.remote.ssh_active ? "enabled · support@" + (settings.remote.ip || settings.remote.hostname) : "enabled · service not running") : "off" }
+            InfoLine { width: parent.width; label: "VNC"; value: settings.remote.vnc_enabled ? (settings.remote.vnc_active ? "enabled · 127.0.0.1:5900" : "enabled · service not running") : "off" }
+
+            Text {
+                visible: settings.remote.ssh_enabled === true && (settings.remote.ssh_password || "").length > 0
+                width: parent.width
+                text: "SSH password: " + (settings.remote.ssh_password || "")
+                color: Theme.warn
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.s(17)
+                font.weight: Font.DemiBold
+                wrapMode: Text.WrapAnywhere
+            }
+
+            ActionList {
+                id: remoteActions
+                width: parent.width
+                height: Math.min(Theme.s(286), implicitHeight)
+                actions: settings.remoteActionItems()
+                onTriggered: function (index) { settings.handleRemoteAction(index) }
+                onNavigateUp: settings.requestHeaderFocus()
+            }
+
+            Text {
+                width: parent.width
+                text: settings.remote.ssh_enabled
+                      ? "SSH:  ssh support@" + (settings.remote.ip || "<pi-address>") +
+                        "\nVNC:  ssh -L 5900:127.0.0.1:5900 support@" + (settings.remote.ip || "<pi-address>") +
+                        "\nThen open a VNC viewer at 127.0.0.1:5900. Keep the SSH window open."
+                      : "Enable SSH to receive a one-time password and connection command. Only enable remote access on a trusted network."
+                color: Theme.textDim
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.s(12)
+                wrapMode: Text.WordWrap
+                lineHeight: 1.25
+            }
+
+            Text {
+                width: parent.width
+                text: "Turning SSH off locks the support account and deletes its password. The kiosk user remains locked and has no remote login."
+                color: Theme.textFaint
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.s(12)
+                wrapMode: Text.WordWrap
             }
         }
     }
@@ -640,6 +1001,133 @@ Item {
                     settings.flash("Idle screen updated", false)
                 }
                 onNavigateUp: motionActions.focusFirst()
+            }
+        }
+    }
+
+    // -------------------------------------------------------------- input
+    Item {
+        id: inputPage
+        objectName: "settingsInputPage"
+        anchors.fill: parent
+        visible: settings.page === "input"
+
+        Column {
+            anchors.fill: parent
+            spacing: Theme.s(8)
+
+            Text { text: "Input"; color: Theme.text; font.family: Theme.fontFamily; font.pixelSize: Theme.s(26); font.weight: Font.DemiBold }
+            Text {
+                width: parent.width
+                text: "A television remote must reach the Pi, not the television. USB keyboards and USB/IR receivers work without setup; pair a Bluetooth remote from Settings \u2192 Bluetooth."
+                color: Theme.textFaint
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.s(13)
+                wrapMode: Text.WordWrap
+            }
+            InfoLine { width: parent.width; label: "Keyboards"; value: (settings.input.keyboard_count || 0) + (settings.input.keyboard_count === 1 ? " device" : " devices") }
+            InfoLine { width: parent.width; label: "Remotes"; value: (settings.input.remote_count || 0) + (settings.input.remote_count === 1 ? " device" : " devices") }
+            InfoLine {
+                width: parent.width
+                label: "HDMI-CEC"
+                value: settings.input.cec && settings.input.cec.adapter_detected
+                       ? "adapter detected \u00b7 not enabled"
+                       : "no adapter detected"
+            }
+
+            ActionList {
+                id: inputActions
+                objectName: "settingsInputActions"
+                width: parent.width
+                actions: [
+                    { label: "Test key presses", detail: "see which keys arrive" },
+                    { label: "Refresh input devices", detail: "re-read the kernel device list" },
+                    { label: "Input help", detail: "keyboard, remote and CEC notes" }
+                ]
+                onTriggered: function (index) {
+                    if (index === 0) {
+                        inputTest.open()
+                    } else if (index === 1) {
+                        settings.loadInput()
+                        settings.flash("Input devices refreshed", false)
+                    } else {
+                        settings.flash("Remote keys need a USB receiver; CEC is not enabled in this build", false)
+                    }
+                }
+                onNavigateDown: if (settings.inputDeviceItems().length > 0) inputDevices.focusFirst()
+                onNavigateUp: settings.requestHeaderFocus()
+            }
+
+            Text {
+                text: "Detected keyboards and remotes"
+                visible: settings.inputDeviceItems().length > 0
+                color: Theme.textDim
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.s(15)
+                font.weight: Font.DemiBold
+            }
+
+            ActionList {
+                id: inputDevices
+                width: parent.width
+                height: Math.min(Theme.s(250), implicitHeight)
+                actions: settings.inputDeviceItems()
+                onTriggered: function (index) { inputTest.open() }
+                onNavigateUp: inputActions.focusFirst()
+            }
+
+            Text {
+                width: parent.width
+                text: "A device listed here is seen by the kernel. If it is listed but keys do nothing, the compositor has not given it focus; press Home and try again. A device that appears only after a few seconds was hot-plugged and is now ready. Pair wireless remotes from Settings \u2192 Bluetooth."
+                color: Theme.textFaint
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.s(12)
+                wrapMode: Text.WordWrap
+                lineHeight: 1.25
+            }
+        }
+    }
+
+    // ------------------------------------------------------------ bluetooth
+    Item {
+        id: bluetoothPage
+        objectName: "settingsBluetoothPage"
+        anchors.fill: parent
+        visible: settings.page === "bluetooth"
+
+        Column {
+            anchors.fill: parent
+            spacing: Theme.s(9)
+
+            Text { text: "Bluetooth"; color: Theme.text; font.family: Theme.fontFamily; font.pixelSize: Theme.s(26); font.weight: Font.DemiBold }
+            Text {
+                width: parent.width
+                text: "Pair a wireless remote, keyboard or controller. Put the device in pairing mode before scanning. A television's own remote does not appear here: it talks to the television, not the Pi."
+                color: Theme.textFaint
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.s(13)
+                wrapMode: Text.WordWrap
+            }
+            InfoLine { width: parent.width; label: "Adapter"; value: settings.bluetooth.adapter ? settings.bluetooth.adapter : "not available" }
+            InfoLine { width: parent.width; label: "Status"; value: settings.bluetooth.available ? (settings.bluetooth.powered ? "powered on" : "adapter is off") : (settings.bluetooth.error || "unavailable") }
+
+            ActionList {
+                id: bluetoothActions
+                objectName: "settingsBluetoothActions"
+                width: parent.width
+                height: Math.min(Theme.s(420), implicitHeight)
+                actions: settings.bluetoothActionItems()
+                onTriggered: function (index) { settings.handleBluetoothAction(index) }
+                onNavigateUp: settings.requestHeaderFocus()
+            }
+
+            Text {
+                width: parent.width
+                text: "Pairing is local to this Pi. Some remotes require a PIN or a vendor app and will not pair here; use their USB receiver instead. HDMI-CEC is still not enabled, so the television remote's buttons will not control PiVista."
+                color: Theme.textFaint
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.s(12)
+                wrapMode: Text.WordWrap
             }
         }
     }
@@ -1186,11 +1674,36 @@ Item {
     }
 
     // -------------------------------------------------------------- dialogs
+    InputTestDialog {
+        id: inputTest
+        objectName: "inputTestDialog"
+        onClosed: inputActions.focusFirst()
+    }
+
     TextEntryDialog {
         id: wifiDialog
         title: "Wi-Fi password"
         mask: true
         onAccepted: function (text) { settings.connectWifi(text) }
+        onCancelled: {
+            close()
+            netActions.focusFirst()
+        }
+    }
+
+    TextEntryDialog {
+        id: hostnameDialog
+        title: "Device name"
+        hint: "Lowercase letters, digits and hyphens. This is the name SSH and your router show."
+        onAccepted: function (text) {
+            busy = true
+            settings.api("system.set_hostname", { hostname: text.trim().toLowerCase() }, function (data) {
+                close()
+                settings.sysInfo.hostname = data.hostname || text
+                settings.flash("Device name set to " + (data.hostname || text), false)
+                netActions.focusFirst()
+            }, 15000, function (message) { fail(message) })
+        }
         onCancelled: {
             close()
             netActions.focusFirst()

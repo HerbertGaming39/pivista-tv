@@ -6,6 +6,7 @@ import json
 import pathlib
 import subprocess
 import sys
+import tempfile
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -24,9 +25,11 @@ class StubRunner:
     def __init__(self, responses=None):
         self.responses = responses or {}
         self.calls = []
+        self.inputs = []
 
-    def run(self, argv, timeout=None, env=None, check=False):
+    def run(self, argv, timeout=None, env=None, check=False, input_text=None):
         self.calls.append(list(argv))
+        self.inputs.append(input_text)
         for prefix, response in self.responses.items():
             if tuple(argv[:len(prefix)]) == tuple(prefix):
                 if callable(response):
@@ -37,9 +40,12 @@ class StubRunner:
         return completed(argv)
 
 
-def service_with(runner):
+def service_with(runner, remote_dir=None):
     ctx = pivistad.ServiceContext(runner=runner, state_dir="/tmp/pivista-test",
-                                  log_dir="/tmp/pivista-test", config_dir="/tmp/pivista-test")
+                                  log_dir="/tmp/pivista-test", config_dir="/tmp/pivista-test",
+                                  sshd_path="/bin/sh")
+    if remote_dir is not None:
+        ctx.remote_dir = remote_dir
     return pivistad.ControlService(ctx)
 
 
@@ -316,6 +322,198 @@ class AndroidTests(unittest.TestCase):
         self.assertFalse(data["supported"])
         self.assertFalse(data["widevine_l1"])
         self.assertIn(data["state"], {"unsupported", "installed-unverified"})
+
+
+class RemoteAccessTests(unittest.TestCase):
+    def test_status_is_off_and_has_no_password_by_default(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = StubRunner({
+                ("/usr/bin/systemctl", "is-active"): ("", "", 3),
+                ("/usr/bin/systemctl", "is-enabled"): ("", "", 1),
+            })
+            data = service_with(runner, tmp).remote_status({})
+            self.assertFalse(data["ssh_enabled"])
+            self.assertFalse(data["vnc_enabled"])
+            self.assertEqual(data["ssh_password"], "")
+            self.assertEqual(data["vnc_host"], "127.0.0.1")
+
+    def test_ssh_enable_requires_confirmation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaises(pivistad.ActionError) as ctx:
+                service_with(StubRunner(), tmp).remote_ssh_enable({})
+            self.assertEqual(ctx.exception.code, "confirmation_required")
+
+    def test_ssh_enable_generates_password_and_starts_service(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = StubRunner({
+                ("/usr/bin/systemctl", "is-enabled"): "",
+                ("/usr/bin/systemctl", "is-active"): "",
+                ("/usr/sbin/chpasswd"): "",
+                ("/usr/bin/ssh-keygen"): "",
+                ("/usr/bin/systemctl", "unmask"): "",
+                ("/usr/bin/systemctl", "enable"): "",
+            })
+            svc = service_with(runner, tmp)
+            data = svc.remote_ssh_enable({"confirm": True})
+            self.assertTrue(data["ssh_enabled"])
+            self.assertEqual(len(data["ssh_password"]), 20)
+            self.assertIn(["/usr/bin/ssh-keygen", "-A"], runner.calls)
+            self.assertIn(["/usr/bin/systemctl", "enable", "--now", "ssh.service"], runner.calls)
+
+            call = runner.calls.index(["/usr/sbin/chpasswd"])
+            self.assertRegex(runner.inputs[call], r"^support:[A-Za-z0-9]{20}\n$")
+
+    def test_ssh_disable_locks_support_and_removes_password(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = StubRunner({
+                ("/usr/bin/systemctl", "is-enabled"): "",
+                ("/usr/bin/systemctl", "is-active"): "",
+                ("/usr/sbin/chpasswd"): "",
+                ("/usr/bin/ssh-keygen"): "",
+                ("/usr/bin/systemctl", "unmask"): "",
+                ("/usr/bin/systemctl", "enable"): "",
+            })
+            svc = service_with(runner, tmp)
+            svc.remote_ssh_enable({"confirm": True})
+            svc.remote_ssh_disable({"confirm": True})
+            self.assertIn(["/usr/bin/passwd", "--lock", "support"], runner.calls)
+            self.assertFalse((pathlib.Path(tmp) / "ssh-password").exists())
+
+    def test_vnc_requires_ssh(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = StubRunner({
+                ("/usr/bin/systemctl", "is-enabled"): ("", "", 1),
+                ("/usr/bin/systemctl", "is-active"): ("", "", 3),
+            })
+            with self.assertRaises(pivistad.ActionError) as ctx:
+                service_with(runner, tmp).remote_vnc_enable({"confirm": True})
+            self.assertEqual(ctx.exception.code, "ssh_required")
+
+    def test_vnc_enable_starts_local_service_when_ssh_is_enabled(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = StubRunner({
+                ("/usr/bin/systemctl", "is-enabled"): "",
+                ("/usr/bin/systemctl", "is-active"): "",
+                ("/usr/bin/systemctl", "enable"): "",
+            })
+            data = service_with(runner, tmp).remote_vnc_enable({"confirm": True})
+            self.assertTrue(data["vnc_enabled"])
+            self.assertIn(["/usr/bin/systemctl", "enable", "--now", "pivista-vnc.service"],
+                          runner.calls)
+
+
+class InputTests(unittest.TestCase):
+    SAMPLE = """I: Bus=0003 Vendor=046d Product=c52b Version=0111
+N: Name="Logitech USB Receiver"
+S: Sysfs=/devices/pci0000:00/usb1/1-1/1-1:1.0/0003:046D:C52B.0001/input/input0
+H: Handlers=sysrq kbd leds event0
+B: EV=120013
+B: KEY=10000 7 ff9f207a c14057ff febeffdf ffefffff ffffffff fffffffe
+
+I: Bus=0003 Vendor=0000 Product=0000 Version=0000
+N: Name="HDMI CEC"
+S: Sysfs=/devices/virtual/input/input1
+H: Handlers=event1
+B: EV=3
+B: KEY=0
+
+I: Bus=0003 Vendor=1b1c Product=1b3e Version=0100
+N: Name="Wireless Remote"
+S: Sysfs=/devices/virtual/input/input2
+H: Handlers=event2
+B: EV=13
+B: KEY=1 0 0 0 0 0 0 0 0
+"""
+
+    def test_parser_finds_keyboards_and_remotes(self):
+        devices = pivistad.parse_input_devices(self.SAMPLE)
+        names = [device["name"] for device in devices]
+        self.assertIn("Logitech USB Receiver", names)
+        self.assertIn("Wireless Remote", names)
+        self.assertNotIn("HDMI CEC", names)
+        self.assertEqual(devices[0]["name"], "Logitech USB Receiver")
+        self.assertEqual(devices[0]["kind"], "keyboard")
+        self.assertEqual(devices[0]["event"], "/dev/input/event0")
+        self.assertEqual(devices[1]["kind"], "remote")
+
+    def test_status_is_safe_without_devices(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            original = pivistad.read_text
+            try:
+                pivistad.read_text = lambda path, default="": ""
+                data = service_with(StubRunner(), tmp).input_status({})
+            finally:
+                pivistad.read_text = original
+            self.assertEqual(data["devices"], [])
+            self.assertFalse(data["cec"]["enabled"])
+            self.assertTrue(data["input_map_present"] in (True, False))
+
+
+class BluetoothTests(unittest.TestCase):
+    SHOW = """Controller 00:1A:7D:DA:71:13 (public)
+\tName: pivista
+\tPowered: yes
+\tDiscovering: no
+"""
+
+    def test_status_parses_adapter_and_paired_devices(self):
+        runner = StubRunner({
+            ("bluetoothctl", "show"): self.SHOW,
+            ("bluetoothctl", "devices", "Paired"):
+                "Device AA:BB:CC:DD:EE:FF TV Remote\n",
+        })
+        data = service_with(runner).bluetooth_status({})
+        self.assertTrue(data["available"])
+        self.assertTrue(data["powered"])
+        self.assertEqual(data["adapter"], "00:1A:7D:DA:71:13")
+        self.assertEqual(data["paired"][0]["name"], "TV Remote")
+
+    def test_status_is_unavailable_when_tool_is_missing(self):
+        def missing(argv, **kwargs):
+            raise pivistad.ActionError("not_installed", "bluetoothctl is not installed")
+
+        runner = StubRunner()
+        runner.run = missing
+        data = service_with(runner).bluetooth_status({})
+        self.assertFalse(data["available"])
+        self.assertEqual(data["paired"], [])
+
+    def test_pair_requires_confirmation_and_valid_address(self):
+        svc = service_with(StubRunner())
+        with self.assertRaises(pivistad.ActionError) as ctx:
+            svc.bluetooth_pair({"address": "AA:BB:CC:DD:EE:FF"})
+        self.assertEqual(ctx.exception.code, "confirmation_required")
+        with self.assertRaises(pivistad.ActionError) as ctx:
+            svc.bluetooth_pair({"confirm": True, "address": "--help"})
+        self.assertEqual(ctx.exception.code, "invalid_address")
+
+    def test_pair_trusts_and_connects(self):
+        runner = StubRunner({
+            ("bluetoothctl", "--timeout", "30", "pair"): "Pairing successful\n",
+            ("bluetoothctl", "trust"): "",
+            ("bluetoothctl", "connect"): "",
+            ("bluetoothctl", "show"): self.SHOW,
+            ("bluetoothctl", "devices", "Paired"):
+                "Device AA:BB:CC:DD:EE:FF TV Remote\n",
+        })
+        svc = service_with(runner)
+        svc.bluetooth_pair({"confirm": True, "address": "aa:bb:cc:dd:ee:ff"})
+        self.assertIn(["bluetoothctl", "--timeout", "30", "pair", "AA:BB:CC:DD:EE:FF"],
+                      runner.calls)
+        self.assertIn(["bluetoothctl", "trust", "AA:BB:CC:DD:EE:FF"], runner.calls)
+        self.assertIn(["bluetoothctl", "connect", "AA:BB:CC:DD:EE:FF"], runner.calls)
+
+    def test_scan_marks_paired_devices(self):
+        runner = StubRunner({
+            ("bluetoothctl", "--timeout", "8", "scan", "on"):
+                "[NEW] Device AA:BB:CC:DD:EE:FF Remote\n[NEW] Device 11:22:33:44:55:66 Speaker\n",
+            ("bluetoothctl", "devices", "Paired"):
+                "Device AA:BB:CC:DD:EE:FF Remote\n",
+        })
+        data = service_with(runner).bluetooth_scan({"confirm": True})
+        self.assertEqual(len(data["devices"]), 2)
+        self.assertTrue(data["devices"][0]["paired"])
+        self.assertFalse(data["devices"][1]["paired"])
 
 
 if __name__ == "__main__":

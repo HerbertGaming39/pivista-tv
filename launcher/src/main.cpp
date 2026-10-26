@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
 {
     for (int i = 1; i < argc; ++i) {
         if (QString::fromLocal8Bit(argv[i]) == QLatin1String("--version")) {
-            printf("PiVista TV launcher 0.3.1\n");
+            printf("PiVista TV launcher 0.3.2\n");
             return 0;
         }
     }
@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
     QGuiApplication app(argc, argv);
     QGuiApplication::setApplicationName(QStringLiteral("PiVista Launcher"));
     QGuiApplication::setOrganizationName(QStringLiteral("PiVista"));
-    QGuiApplication::setApplicationVersion(QStringLiteral("0.3.1"));
+    QGuiApplication::setApplicationVersion(QStringLiteral("0.3.2"));
     QGuiApplication::setDesktopFileName(QStringLiteral("pivista-launcher"));
 
     bool windowed = false;

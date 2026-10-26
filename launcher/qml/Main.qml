@@ -31,7 +31,20 @@ Window {
     property int statusRequest: -1
     property int appUpdateRequest: -1
     property bool appUpdateNotified: false
-    property string clockText: Qt.formatTime(new Date(), AppSettings.clock24h ? "HH:mm" : "h:mm AP")
+    // A short fade makes section changes legible at television distance. It is
+    // disabled by Theme.anim when reduced motion is selected.
+    property bool contentShown: false
+    // Sleep timer is session state, not a persisted alarm. Expiry shows the
+    // screensaver; it never powers off storage or interrupts a running app.
+    property int sleepTimerMinutes: 0
+    property double sleepTimerEnd: 0
+    property int sleepTimerRemaining: 0
+    property string clockText: Qt.formatTime(new Date(), clockFormat())
+
+    function clockFormat() {
+        const seconds = AppSettings.clockSeconds ? ":ss" : ""
+        return AppSettings.clock24h ? "HH:mm" + seconds : "h:mm" + seconds + " AP"
+    }
     property string dateText: Qt.formatDateTime(new Date(), "ddd d MMM")
     property bool wizardVisible: !AppSettings.setupComplete && !uiDevMode
 
@@ -115,6 +128,42 @@ Window {
         toastTimer.restart()
     }
 
+    function sleepTimerLabel() {
+        if (sleepTimerMinutes <= 0)
+            return "off"
+        const seconds = Math.max(0, sleepTimerRemaining)
+        const minutes = Math.floor(seconds / 60)
+        const rest = seconds % 60
+        return minutes + ":" + (rest < 10 ? "0" : "") + rest + " remaining"
+    }
+
+    function setSleepTimer(minutes) {
+        if (minutes <= 0) {
+            sleepTimerMinutes = 0
+            sleepTimerEnd = 0
+            sleepTimerRemaining = 0
+            showToast("Sleep timer off")
+            return
+        }
+        sleepTimerMinutes = minutes
+        sleepTimerEnd = Date.now() + minutes * 60000
+        sleepTimerRemaining = minutes * 60
+        showToast("Sleep timer: " + minutes + " minutes")
+    }
+
+    function tickSleepTimer() {
+        if (sleepTimerEnd <= 0)
+            return
+        sleepTimerRemaining = Math.max(0, Math.ceil((sleepTimerEnd - Date.now()) / 1000))
+        if (sleepTimerRemaining > 0)
+            return
+        sleepTimerMinutes = 0
+        sleepTimerEnd = 0
+        if (!catalog.externalAppActive && !wizardVisible)
+            screensaverActive = true
+        showToast("Sleep timer finished · press any key")
+    }
+
     function loadStatus() {
         statusRequest = control.call("network.status", {}, 15000)
     }
@@ -128,6 +177,7 @@ Window {
     }
 
     onViewChanged: {
+        contentShown = false
         syncNav()
         Qt.callLater(focusContent)
     }
@@ -230,7 +280,7 @@ Window {
         repeat: true
         running: true
         onTriggered: {
-            window.clockText = Qt.formatTime(new Date(), AppSettings.clock24h ? "HH:mm" : "h:mm AP")
+            window.clockText = Qt.formatTime(new Date(), window.clockFormat())
             window.dateText = Qt.formatDateTime(new Date(), "ddd d MMM")
         }
     }
@@ -252,6 +302,13 @@ Window {
             interval = 6 * 60 * 60 * 1000
             repeat = true
         }
+    }
+
+    Timer {
+        interval: 1000
+        repeat: true
+        running: window.sleepTimerEnd > 0
+        onTriggered: window.tickSleepTimer()
     }
 
     Timer {
@@ -477,6 +534,7 @@ Window {
         // Content
         Loader {
             id: contentLoader
+            opacity: window.contentShown ? 1 : 0
             // The wizard is a full-screen overlay.  Do not load or focus the
             // home screen underneath it: its queued focus calls used to steal
             // focus from the wizard's ActionList a moment after activation,
@@ -499,9 +557,14 @@ Window {
                            : window.view === "settings" ? settingsScreen
                            : homeScreen
 
+            Behavior on opacity {
+                NumberAnimation { duration: Theme.anim; easing.type: Easing.OutCubic }
+            }
+
             onLoaded: {
                 if (item.requestHeaderFocus)
                     item.requestHeaderFocus.connect(window.focusHeader)
+                Qt.callLater(function () { window.contentShown = true })
                 if (!window.wizardVisible)
                     Qt.callLater(window.focusContent)
             }
@@ -553,6 +616,9 @@ Window {
 
         QuickPanel {
             id: quickPanel
+            sleepMinutes: window.sleepTimerMinutes
+            sleepRemaining: window.sleepTimerRemaining
+            onSleepTimerRequested: function (minutes) { window.setSleepTimer(minutes) }
             onClosed: {
                 window.quickOpen = false
                 window.restoreAfterOverlay()

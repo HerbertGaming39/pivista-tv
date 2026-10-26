@@ -1,6 +1,6 @@
 # PiVista TV — status
 
-Updated: 2026-10-25 · Version 0.3.1 "Cascade" · Build `20261025T191615Z`
+Updated: 2026-10-26 · Version 0.3.2 "Harbor" · Build `20261026T155217Z`
 
 Build host: x86_64 WSL2 (Ubuntu). The image was validated and its launcher was
 rendered from the sealed filesystem under qemu-user. It has **not** been booted
@@ -8,9 +8,9 @@ on a Raspberry Pi 5. No physical Pi was reachable during this build; hardware
 boot, HDMI/audio, Wi-Fi, remote input and a real launcher update therefore
 remain unverified.
 
-The previous 0.1.0, 0.2.0 and 0.3.0 artifacts remain under `releases/baseline-*`,
-`releases/pivista-tv-0.2.0-pi5-arm64.img.xz` and
-`releases/pivista-tv-0.3.0-pi5-arm64.img.xz`.
+The previous 0.1.0, 0.2.0, 0.3.0 and 0.3.1 artifacts remain under
+`releases/baseline-*` and as `releases/pivista-tv-0.<minor>.0-pi5-arm64.img.xz`
+(0.2.0, 0.3.0, 0.3.1).
 
 Status vocabulary:
 
@@ -23,7 +23,7 @@ Status vocabulary:
 | **Unsupported** | Deliberately not provided |
 | **Blocked** | Attempted, blocked by an external constraint |
 
-## Update system (0.3.1)
+## Update system (0.3.2)
 
 | Item | Status | Evidence / note |
 |---|---|---|
@@ -55,24 +55,26 @@ Status vocabulary:
 |---|---|---|
 | Linux host (not Android) | Verified | Raspberry Pi OS 2026-10-06, Debian 13, kernel 6.18 |
 | Pi 5-specific configuration | Implemented | `kernel_2712.img`, `bcm2712-rpi-5-b.dtb`, `[pi5]` config section retained |
-| Reproducible dependency pins | Verified | base image SHA-256 verified at build time; 1046 package versions recorded |
-| Flashable image produced | Verified | `releases/pivista-tv-0.3.1-pi5-arm64.img.xz`; SHA-256 recorded |
+| Reproducible dependency pins | Verified | base image SHA-256 verified at build time; 1051 package versions recorded |
+| Flashable image produced | Verified | `releases/pivista-tv-0.3.2-pi5-arm64.img.xz`; SHA-256 recorded |
 | Compressed image integrity | Verified | `xz -t` passes; decompressed hash equals the validated work image |
-| Image structure validated | Verified | `tests/image/validate_image.py`: 51/51 checks |
-| Launcher in sealed image | Verified | `pivista-launcher --version` → 0.3.1 in the mounted image under qemu-user |
-| Published image matches validated rootfs | Verified | `xz -dc` of the release image hashes to the same 8,069,840,896-byte work image that passed 51/51 checks |
-| Sealed-image UI render | Verified | Home 720p/1080p/4K, Apps, Media, Settings and Updates rendered from `/usr/share/pivista/qml` in the mounted image |
+| Image structure validated | Verified | `tests/image/validate_image.py`: 61/61 checks |
+| Launcher in sealed image | Verified | `pivista-launcher --version` → 0.3.2 in the mounted image under qemu-user |
+| Published image matches validated rootfs | Verified | `xz -dc` of the release image hashes to the same work image that passed 61/61 checks |
+| Sealed-image UI render | Verified | Home 720p/1080p/4K, Apps, Media, Settings, Updates and Remote support rendered from `/usr/share/pivista/qml` in the mounted image |
 | Signed update metadata in image | Verified | `/usr/share/pivista/version.json` and `/etc/pivista/update-pubkey.pem`, mode 0644 |
 | First-boot root resize | Verified (unit enabled) | vendor `rpi-resize.service` enabled (`systemd-growfs-root`); not exercised on a flashed card |
 | Vendor first-boot helpers disabled | Verified | `userconfig.service` and `sshswitch.service` masked |
 | cloud-init cannot recreate `pi` | Verified | cloud-init units masked, `/etc/cloud/cloud-init.disabled` present, seed files removed |
-| SSH host-key regeneration disabled | Verified | `regenerate_ssh_host_keys.service` masked; `/etc/ssh` absent |
+| SSH host-key regeneration disabled | Verified | `regenerate_ssh_host_keys.service` masked; no host keys shipped; keys are generated on device when SSH is first enabled |
+| Remote support installed but off | Verified | `openssh-server` and `wayvnc` installed; `ssh.service`, `ssh.socket` and `pivista-vnc.service` disabled in the image; no listener on first boot |
+| Bluetooth stack enabled | Verified | `bluetooth.service` enabled and `bluetoothctl` present; pairing UI is exercised only with a mocked daemon |
 | Boot on physical Pi 5 | **Blocked** | No hardware reachable during this build |
 | Persistent user settings | Verified | `~/.config/PiVista/Launcher.conf` (Qt Settings); update test proves it is untouched |
 | Shutdown / reboot | Implemented | `pivistad` → `systemctl poweroff/reboot` |
 | Recovery instructions | Verified | [docs/recovery.md](docs/recovery.md) |
 
-## Interface (0.3.1)
+## Interface (0.3.2)
 
 | Item | Status | Evidence / note |
 |---|---|---|
@@ -87,11 +89,20 @@ Status vocabulary:
 | Updates settings and signed-update controls | Verified | Updates page renders at both sizes; check/download/install/postpone/rollback/restart actions wired |
 | Clock, network and system status | Implemented | Header clock/status; daemon status path has unit tests, no live network in the test host |
 | Remote-style navigation | Implemented | Qt focus chain, arrows/Enter/Back/Escape/Home; no physical remote test |
-| First-boot wizard key handling | Verified (offscreen) | Synthetic Down/Up/Enter/Escape/Select/Backspace test; activation and sway map refocus the launcher |
+| Settings reachability | Verified (offscreen) | Test drives Home → header → Settings → Network → Input with key events; Home/Media row focus regression covered |
+| Input settings | Implemented (offscreen) | Kernel device list, key probe and wizard probe; no physical keyboard/remote test |
+| Time zone and clock settings | Implemented | Settings page writes `timedatectl` through the daemon; 12/24-hour and seconds options persisted |
+| Sleep timer | Implemented (offscreen) | Quick settings cycles 30/60/90/off; expiry shows the screensaver, never powers off storage |
+| Section transitions | Implemented (offscreen) | Fade on screen change, focus lift in navigation and action rows; reduced-motion setting still honoured. Motion is CSS/QML animation, not a GPU frame-rate claim |
+| Streaming category focus | Verified (offscreen) | Media chips are reachable with Left/Right and focus is visible; test drives the production Home/Media QML |
+| First-boot wizard key handling | Verified (offscreen) | Synthetic Down/Up/Enter/Escape/Select/Backspace test; activation and sway map refocus the launcher; the network step no longer collapses Down onto **Do this later** |
 | Blank-screen regression guard | Verified | `tests/ui/screenshot_content.py` fails a correctly-sized but blank content area |
 | 720p / 1080p / 4K scaling | Verified (offscreen) | 1280×720, 1920×1080 and 3840×2160 renders; not a GPU measurement |
 | First-boot wizard | Verified | 8 wizard steps rendered at 720p, welcome at 1080p |
-| Bluetooth input | **Unsupported** | BlueZ/service present, but no pairing UI; documented limitation |
+| Bluetooth input | Implemented (hardware unverified) | Settings → Bluetooth scans, pairs, trusts and forgets devices; mocked control-service tests only |
+| Input key test | Implemented (offscreen) | Settings → Input opens a local key probe showing the exact keys the launcher receives; no physical-device test |
+| SSH remote support | Implemented (hardware unverified) | Disabled by default; `support` account with generated password, no sudo, `AllowUsers support`; daemon unit tests, no live network test |
+| VNC remote support | Implemented (hardware unverified) | Disabled by default; `wayvnc` on `127.0.0.1:5900`, reached only through an SSH tunnel; unit tests, no live viewer test |
 | Global Home return | Implemented | sway binding + user-only launcher socket; no hardware test |
 | HDMI-CEC | **Unverified** | No CEC test or bridge enabled |
 
@@ -120,7 +131,7 @@ Status vocabulary:
 | Clean build instructions | Verified — `build.sh check` |
 | Dependency pinning | Verified — [manifest/base-image.lock](manifest/base-image.lock) |
 | Build logs | Implemented — `build/logs/build-<id>.log` |
-| Automated tests | Verified — 69 host Python tests, 8 launcher/Qt cases, 29 offscreen renders, 51 image checks |
+| Automated tests | Verified — 82 host Python tests, 15 launcher/Qt cases, 37 offscreen renders, 61 image checks |
 | App-update archive reproducibility | Verified — deterministic tar metadata/xz; builder test compares two builds |
 | Image integrity | Verified — SHA-256 matches; `xz -t` passes |
 | Software licence notices | Implemented — `/usr/share/doc` retained in image |
@@ -132,12 +143,12 @@ Status vocabulary:
 
 | Field | Value |
 |---|---|
-| Image | `releases/pivista-tv-0.3.1-pi5-arm64.img.xz` |
-| Size | `1,233,252,448 bytes (1.23 GB / 1.15 GiB compressed)` |
-| SHA-256 | `4dc319f11004dff4e8bae11f50b85bda009fad042c73a1ef879d1434228e2ab5` |
-| Build ID | `20261025T191615Z` |
-| Packages | 1046 installed (versions in the manifest) |
-| Source state | Image content committed in `73bcdb1`; artifact manifest generated from that clean tree after sealing |
+| Image | `releases/pivista-tv-0.3.2-pi5-arm64.img.xz` |
+| Size | `1,240,447,344 bytes (1.24 GB / 1.16 GiB compressed)` |
+| SHA-256 | `1a0442f5882fb01fe533d8cbbf545c4db39c3be0f9761cd3d4b9aeb5b3e64873` |
+| Build ID | `20261026T155217Z` |
+| Packages | 1051 installed (versions in the manifest) |
+| Source state | See the artifact manifest's `provenance.source_commit`; the launcher and image were sealed from the release commit |
 | Hardware test checklist | [docs/hardware-test.md](docs/hardware-test.md) |
 
 ## What is deliberately absent
@@ -146,8 +157,10 @@ Status vocabulary:
   launcher channel is separate and implemented; the base image is not.
 - Widevine L1 / provider certification.
 - Google Play services, Android runtime, APK installation.
-- Bluetooth pairing UI.
-- Telemetry, cloud accounts, remote administration.
+- HDMI-CEC key translation. The adapter can be detected, but no CEC remote path is enabled.
+- Telemetry and cloud accounts. Remote administration exists only as the
+  optional, off-by-default SSH/VNC support path described in
+  [docs/remote-access.md](docs/remote-access.md); it is not a management plane.
 
 ## Next verification steps (in order)
 
@@ -163,3 +176,5 @@ Status vocabulary:
 5. Test Wi-Fi association with a remote-only setup, including a wrong password.
 6. Test the global Home key while Chromium and a native app are running.
 7. Test a USB/IR remote and record which buttons emit which key codes.
+8. Test optional SSH and VNC from another computer: refused when off, password
+   login, no sudo, tunnel-only VNC, and both disabled again after a reboot.

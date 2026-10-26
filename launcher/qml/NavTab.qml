@@ -20,6 +20,15 @@ Item {
         Behavior on color {
             ColorAnimation { duration: Theme.animShort }
         }
+        Behavior on border.width {
+            NumberAnimation { duration: Theme.animShort; easing.type: Easing.OutCubic }
+        }
+
+        // A tiny lift on focus reads at sofa distance without moving the row.
+        scale: tab.tabFocused ? 1.04 : 1.0
+        Behavior on scale {
+            NumberAnimation { duration: Theme.animShort; easing.type: Easing.OutCubic }
+        }
     }
 
     Text {

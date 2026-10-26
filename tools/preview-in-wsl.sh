@@ -89,7 +89,7 @@ if [ -z "${QT_QPA_PLATFORM:-}" ]; then
 fi
 
 echo "preview: starting the current source tree at ${PIVISTA_UI_WIDTH}x${PIVISTA_UI_HEIGHT}"
-echo "preview: this includes unreleased focus fixes; the window version string may still say 0.3.1"
+echo "preview: this is the current working tree; the window version string may show 0.3.2"
 echo "preview: use the arrow keys, Enter, Escape and Home in the window"
 echo "preview: no control service is running; settings actions will report that"
 exec "$BUILD/pivista-launcher" --windowed

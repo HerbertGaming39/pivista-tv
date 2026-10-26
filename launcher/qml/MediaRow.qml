@@ -5,6 +5,9 @@ Item {
     property string title: ""
     property var items: []
     property int currentIndexHint: 0
+    // The row itself is an Item; focus lives on its horizontal ListView.
+    // Vertical navigation must test that child, not row.activeFocus.
+    readonly property bool rowActiveFocus: list.activeFocus
 
     signal navigate(int delta, int index)
     signal activated(int index)

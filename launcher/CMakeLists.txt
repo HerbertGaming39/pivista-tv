@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(pivista-launcher VERSION 0.3.1 LANGUAGES CXX)
+project(pivista-launcher VERSION 0.3.2 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -87,4 +87,23 @@ if(PIVISTA_BUILD_TESTS)
         Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::Network Qt6::Test
     )
     add_test(NAME launcher-home-navigation COMMAND pivista-home-navigation-tests)
+
+    add_executable(pivista-settings-navigation-tests
+        tests/test_settings_navigation.cpp
+        src/appcatalog.cpp
+        src/appcatalog.h
+        src/controlclient.cpp
+        src/controlclient.h
+        src/homecontrol.cpp
+        src/homecontrol.h
+    )
+    target_include_directories(pivista-settings-navigation-tests PRIVATE src)
+    target_compile_definitions(pivista-settings-navigation-tests PRIVATE
+        PIVISTA_QML_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml"
+        PIVISTA_WEBAPP_CATALOG="${CMAKE_CURRENT_SOURCE_DIR}/../applications/web/catalog.json"
+    )
+    target_link_libraries(pivista-settings-navigation-tests PRIVATE
+        Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::Network Qt6::Test
+    )
+    add_test(NAME launcher-settings-navigation COMMAND pivista-settings-navigation-tests)
 endif()

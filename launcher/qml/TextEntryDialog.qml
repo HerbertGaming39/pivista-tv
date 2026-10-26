@@ -9,6 +9,7 @@ FocusScope {
     property string title: "Enter text"
     property string hint: ""
     property bool mask: false
+    property string initialText: ""
     property bool busy: false
     property string errorText: ""
 
@@ -16,7 +17,7 @@ FocusScope {
     signal cancelled()
 
     function open() {
-        keyboard.text = ""
+        keyboard.text = initialText
         errorText = ""
         busy = false
         visible = true

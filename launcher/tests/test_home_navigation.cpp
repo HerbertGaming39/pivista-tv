@@ -21,6 +21,24 @@
 namespace {
 constexpr const char *kQmlDir = PIVISTA_QML_DIR;
 constexpr const char *kCatalog = PIVISTA_WEBAPP_CATALOG;
+
+QString focusedRowName(QQuickItem *home)
+{
+    const QStringList names = {
+        QStringLiteral("recentRow"), QStringLiteral("favoritesRow"),
+        QStringLiteral("streamingRow"), QStringLiteral("appsRow")
+    };
+    for (const QString &name : names) {
+        auto *row = home->findChild<QQuickItem *>(name);
+        if (!row || !row->isVisible())
+            continue;
+        for (auto *child : row->findChildren<QQuickItem *>()) {
+            if (child->hasActiveFocus())
+                return name;
+        }
+    }
+    return {};
+}
 }
 
 class HomeNavigationTest : public QObject
@@ -30,6 +48,7 @@ class HomeNavigationTest : public QObject
 private slots:
     void initTestCase();
     void bannerCanReturnToHeaderAndSettings();
+    void categoryChipsAreKeyboardReachable();
 
 private:
     // The engine must be destroyed before the context objects it points at.
@@ -84,25 +103,21 @@ void HomeNavigationTest::bannerCanReturnToHeaderAndSettings()
     QTest::keyClick(window, Qt::Key_Down);
     QTRY_VERIFY2(!banner->hasActiveFocus(), "Down did not leave the featured banner");
 
-    QQuickItem *focusedRow = nullptr;
-    const QStringList rowNames = {
-        QStringLiteral("recentRow"), QStringLiteral("favoritesRow"),
-        QStringLiteral("streamingRow"), QStringLiteral("appsRow")
-    };
-    for (const QString &name : rowNames) {
-        auto *row = home->findChild<QQuickItem *>(name);
-        if (!row || !row->isVisible())
-            continue;
-        for (auto *child : row->findChildren<QQuickItem *>()) {
-            if (child->hasActiveFocus()) {
-                focusedRow = row;
-                break;
-            }
-        }
-        if (focusedRow)
-            break;
-    }
-    QVERIFY2(focusedRow, "Down did not move focus into a content row");
+    const QString firstRow = focusedRowName(home);
+    QVERIFY2(!firstRow.isEmpty(), "Down did not move focus into a content row");
+
+    // A second Down must reach the next row.  MediaRow focus lives on its
+    // child ListView, so testing row.activeFocus silently failed and reset to
+    // the first row every time; Streaming could not be reached below it.
+    QTest::keyClick(window, Qt::Key_Down);
+    QTRY_VERIFY2(!focusedRowName(home).isEmpty(),
+                 "Down left focus outside the content rows");
+    const QString secondRow = focusedRowName(home);
+    QVERIFY2(secondRow != firstRow,
+             "Down stayed on the same row instead of reaching the next one");
+
+    QTest::keyClick(window, Qt::Key_Up);
+    QTRY_COMPARE(focusedRowName(home), firstRow);
 
     // Up returns to the banner, then to the header.  This second step is the
     // regression: the banner used to have no Up handler.
@@ -127,6 +142,38 @@ void HomeNavigationTest::bannerCanReturnToHeaderAndSettings()
     QTRY_VERIFY(nav->hasActiveFocus());
     QTest::keyClick(window, Qt::Key_Down);
     QTRY_VERIFY(!nav->hasActiveFocus());
+}
+
+void HomeNavigationTest::categoryChipsAreKeyboardReachable()
+{
+    auto *window = qobject_cast<QQuickWindow *>(m_engine.rootObjects().first());
+    QVERIFY(window);
+
+    window->setProperty("view", QStringLiteral("apps"));
+    auto *apps = window->findChild<QQuickItem *>(QStringLiteral("appsScreen"));
+    auto *chips = window->findChild<QQuickItem *>(QStringLiteral("categoryChips"));
+    auto *grid = window->findChild<QQuickItem *>(QStringLiteral("appsGrid"));
+    QTRY_VERIFY(apps != nullptr);
+    QTRY_VERIFY(chips != nullptr);
+    QTRY_VERIFY(grid != nullptr);
+    QTRY_VERIFY(grid->hasActiveFocus());
+
+    // Up from the first grid row enters the category chips.
+    QTest::keyClick(window, Qt::Key_Up);
+    QTRY_VERIFY2(chips->hasActiveFocus(), "Up did not focus the category chips");
+    QCOMPARE(chips->property("currentIndex").toInt(), 0);
+
+    // All -> Installed -> Web; Enter filters to streaming shortcuts.
+    QTest::keyClick(window, Qt::Key_Right);
+    QTRY_COMPARE(chips->property("currentIndex").toInt(), 1);
+    QTest::keyClick(window, Qt::Key_Right);
+    QTRY_COMPARE(chips->property("currentIndex").toInt(), 2);
+    QTest::keyClick(window, Qt::Key_Return);
+    QTRY_COMPARE(apps->property("filter").toString(), QStringLiteral("Web"));
+
+    // Down returns to the filtered grid rather than stranding focus.
+    QTest::keyClick(window, Qt::Key_Down);
+    QTRY_VERIFY2(grid->hasActiveFocus(), "Down did not return to the app grid");
 }
 
 int main(int argc, char *argv[])

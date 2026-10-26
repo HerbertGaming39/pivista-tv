@@ -65,7 +65,12 @@ extra configuration is justified.
 No desktop environment, panel, file manager or terminal is installed for normal
 use. A text console exists for boot messages, but the accounts are locked; there
 is no interactive login. Recovery is by mounting the card offline or the
-physical `init=/bin/bash` procedure in `recovery.md`.
+physical `init=/bin/bash` procedure in `recovery.md`. Optional remote support
+runs two separate services: `ssh.service` for the non-sudo `support` account,
+and `pivista-vnc.service`, which attaches `wayvnc` to the existing sway session
+on `127.0.0.1:5900`. Both are disabled until the user enables them from
+Settings; the launcher never holds a remote-access credential. See
+[remote-access.md](remote-access.md).
 
 ### Privilege boundary
 
@@ -136,3 +141,7 @@ supported because its icon appeared before it launches.
   matters for 1080p streaming and is documented rather than hidden.
 - **HDMI-CEC untested.** `cec-utils` is installed, but no CEC bridge is enabled
   by default because the Pi 5 CEC path was not verified on hardware.
+- **Remote support is not a second session.** VNC mirrors the television and
+  therefore shows whatever is on screen, including account prompts; SSH is a
+  narrow support shell without sudo. Neither is a substitute for offline
+  recovery.

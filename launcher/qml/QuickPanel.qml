@@ -10,8 +10,11 @@ FocusScope {
     property var net: ({})
     property var pending: ({})
     property var pendingConfirm: null
+    property int sleepMinutes: 0
+    property int sleepRemaining: 0
 
     signal closed()
+    signal sleepTimerRequested(int minutes)
 
     function api(action, params, onOk, timeout, onErr) {
         const id = control.call(action, params, timeout === undefined ? 20000 : timeout)
@@ -133,6 +136,10 @@ FocusScope {
                     { label: "Volume up", detail: "+5%" },
                     { label: "Volume down", detail: "-5%" },
                     { label: panel.audio.mute ? "Unmute" : "Mute", detail: "" },
+                    { label: "Sleep timer", detail: panel.sleepMinutes > 0
+                                                    ? (Math.floor(panel.sleepRemaining / 60) + ":"
+                                                       + ("0" + (panel.sleepRemaining % 60)).slice(-2) + " remaining")
+                                                    : "off · 30 / 60 / 90 min" },
                     { label: "Restart", detail: "safe reboot" },
                     { label: "Shut down", detail: "power off" },
                     { label: "Close", detail: "" }
@@ -144,10 +151,15 @@ FocusScope {
                     } else if (index === 2) {
                         panel.api("audio.set_mute", { mute: !panel.audio.mute }, function () { panel.load() })
                     } else if (index === 3) {
+                        const next = panel.sleepMinutes === 0 ? 30
+                                   : (panel.sleepMinutes === 30 ? 60
+                                   : (panel.sleepMinutes === 60 ? 90 : 0))
+                        panel.sleepTimerRequested(next)
+                    } else if (index === 4) {
                         panel.askConfirm("Restart", "Restart PiVista TV now?", "Restart", function () {
                             panel.api("power.reboot", { confirm: true }, function () { panel.close() })
                         })
-                    } else if (index === 4) {
+                    } else if (index === 5) {
                         panel.askConfirm("Shut down", "Power off safely? The screen will go blank.", "Shut down", function () {
                             panel.api("power.shutdown", { confirm: true }, function () { panel.close() })
                         })

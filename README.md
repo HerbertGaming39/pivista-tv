@@ -37,7 +37,7 @@ Flash → boot → first-time setup → television
   [docs/streaming.md](docs/streaming.md); no 1080p claim is made.
 - **Not validated on physical hardware for this release.** The image is
   structurally validated and its sealed launcher is rendered under qemu-user;
-  the physical Pi was unreachable during the 0.3.1 build. See
+  the physical Pi was unreachable during the 0.3.2 build. See
   [STATUS.md](STATUS.md).
 - **Not a fork of the Linux kernel or Raspberry Pi firmware.** Upstream
   Raspberry Pi OS components are pinned, not patched.
@@ -58,7 +58,15 @@ Flash → boot → first-time setup → television
   playback position without a real player/provider integration.
 - **Settings** is a full TV settings app. Appearance offers theme, wallpaper,
   home-row visibility, start screen and 12/24-hour clock; changes persist in
-  `~/.config/PiVista/Launcher.conf`.
+  `~/.config/PiVista/Launcher.conf`. It also covers network, display, audio,
+  time zone, Bluetooth pairing, an on-screen input test, updates, privacy and
+  optional remote support.
+- **Remote support** can be switched on from Settings: a non-sudo `support`
+  account with a generated password for SSH, and VNC bound to `127.0.0.1` and
+  reached through an SSH tunnel. Both are off on a new image. See
+  [docs/remote-access.md](docs/remote-access.md).
+- **Motion** is subtle: fade between sections, focus lift in navigation and
+  action rows. It is disabled when the system reports reduced motion.
 - **Focus** is designed for a remote: directional movement across the header and
   rows, Enter/OK, Escape/Back and a global Home key. Focus rings are visible at
   720p, 1080p and 4K.
@@ -74,7 +82,7 @@ operating systems but uses no Google/Android branding or proprietary assets.
 | Storage | microSD (A2 recommended) or USB SSD |
 | Display | HDMI television or monitor, 1080p target |
 | Network | Ethernet or Wi-Fi (2.4/5 GHz) |
-| Input | USB keyboard, USB/IR remote or game controller; Bluetooth input needs pairing (no pairing UI yet); HDMI-CEC untested |
+| Input | USB keyboard, USB/IR remote or game controller; Bluetooth remotes can be paired in Settings; HDMI-CEC untested |
 | Power | Official 27 W USB-C supply recommended |
 
 ## Current status
@@ -93,8 +101,8 @@ Implemented and covered by automated tests:
 - NetworkManager/PipeWire integration code paths
 - Image structure validation and package manifest
 
-Automated tests in this build: **69 host Python tests, 8 launcher/Qt cases, 29
-offscreen screen renders and 51 image checks**. The image is structurally
+Automated tests in this build: **82 host Python tests, 15 launcher/Qt cases, 37
+offscreen screen renders and 61 image checks**. The image is structurally
 validated, its sealed launcher was rendered under qemu-user, and it is not
 booted on a Pi.
 
@@ -132,9 +140,9 @@ wsl -d Ubuntu -u root -- bash /mnt/c/path/to/pivista-tv/build.sh image
 Outputs land in `releases/`:
 
 ```
-pivista-tv-0.3.1-pi5-arm64.img.xz
-pivista-tv-0.3.1-pi5-arm64.img.xz.sha256
-pivista-tv-0.3.1-pi5-arm64.manifest.json
+pivista-tv-0.3.2-pi5-arm64.img.xz
+pivista-tv-0.3.2-pi5-arm64.img.xz.sha256
+pivista-tv-0.3.2-pi5-arm64.manifest.json
 RELEASE-NOTES.md
 ```
 
@@ -146,30 +154,30 @@ Full details, including resource use and incremental builds, are in
 This is the image to test on a physical Raspberry Pi 5. The build host could not
 boot it; the checks below are structural and host-side only.
 
-Download it from the [v0.3.1 GitHub release](https://github.com/HerbertGaming39/pivista-tv/releases/tag/v0.3.1).
-The 1.23 GB image is a release asset, not a file in the Git tree; `releases/` is
+Download it from the [v0.3.2 GitHub release](https://github.com/HerbertGaming39/pivista-tv/releases/tag/v0.3.2).
+The 1.24 GB image is a release asset, not a file in the Git tree; `releases/` is
 where a local build writes it.
 
 | Field | Value |
 |---|---|
-| Image | [`pivista-tv-0.3.1-pi5-arm64.img.xz`](https://github.com/HerbertGaming39/pivista-tv/releases/download/v0.3.1/pivista-tv-0.3.1-pi5-arm64.img.xz) |
-| Size | 1,233,252,448 bytes (1.23 GB compressed) |
-| SHA-256 | `4dc319f11004dff4e8bae11f50b85bda009fad042c73a1ef879d1434228e2ab5` |
-| Build ID | `20261025T191615Z` |
-| Host tests | 69 host Python tests, 8 launcher/Qt cases, 29 offscreen screen renders, 51 image checks (this build) |
+| Image | [`pivista-tv-0.3.2-pi5-arm64.img.xz`](https://github.com/HerbertGaming39/pivista-tv/releases/download/v0.3.2/pivista-tv-0.3.2-pi5-arm64.img.xz) |
+| Size | 1,240,447,344 bytes (1.24 GB compressed) |
+| SHA-256 | `1a0442f5882fb01fe533d8cbbf545c4db39c3be0f9761cd3d4b9aeb5b3e64873` |
+| Build ID | `20261026T155217Z` |
+| Host tests | 82 host Python tests, 15 launcher/Qt cases, 37 offscreen screen renders, 61 image checks (this build) |
 | Hardware test checklist | [docs/hardware-test.md](docs/hardware-test.md) |
 
 Verify the checksum before writing anything:
 
 ```powershell
 # Windows PowerShell
-Get-FileHash .\pivista-tv-0.3.1-pi5-arm64.img.xz -Algorithm SHA256
-Get-Content .\pivista-tv-0.3.1-pi5-arm64.img.xz.sha256
+Get-FileHash .\pivista-tv-0.3.2-pi5-arm64.img.xz -Algorithm SHA256
+Get-Content .\pivista-tv-0.3.2-pi5-arm64.img.xz.sha256
 ```
 
 ```bash
 # Linux / WSL, from the releases directory
-sha256sum -c pivista-tv-0.3.1-pi5-arm64.img.xz.sha256
+sha256sum -c pivista-tv-0.3.2-pi5-arm64.img.xz.sha256
 ```
 
 ### Windows
@@ -188,8 +196,8 @@ sha256sum -c pivista-tv-0.3.1-pi5-arm64.img.xz.sha256
 ```bash
 lsblk                       # identify the card; never guess /dev/sdX
 cd pivista-tv/releases
-sha256sum -c pivista-tv-0.3.1-pi5-arm64.img.xz.sha256
-xz -dc pivista-tv-0.3.1-pi5-arm64.img.xz | \
+sha256sum -c pivista-tv-0.3.2-pi5-arm64.img.xz.sha256
+xz -dc pivista-tv-0.3.2-pi5-arm64.img.xz | \
   sudo dd of=/dev/sdX bs=4M status=progress conv=fsync
 sync
 ```
@@ -204,9 +212,10 @@ ext4 root partition that grows to fill the card on first boot.
    is optional; Wi-Fi can be configured in the wizard.
 2. The root filesystem grows on first boot. This is slower than later boots;
    the exact time has **not been measured on hardware**.
-3. The wizard asks for language/time zone, network, display mode and interface
-   scaling, audio output, remote-control notes, and privacy/update preferences.
-   Every step can be skipped; the UI works offline.
+3. The wizard starts with an **Input check** that lists connected keyboards and
+   remotes and proves that key presses arrive, then asks for language/time zone,
+   network, display mode and interface scaling, audio output, and privacy/update
+   preferences. Every step can be skipped; the UI works offline.
 4. The home screen appears. Use arrows, Enter, Escape/Back and Home.
 
 Settings can be reopened at any time from the top bar. The wizard can be run
@@ -231,23 +240,26 @@ focus checklist.
 
 ### Default login and security
 
-There is **no default password and no usable login**. `root` and `pivista` are
-locked, SSH is not installed, cloud-init is disabled, and no `pi` account is
-created. The HDMI/serial console is for boot messages, not administration.
-Recovery is offline: mount the card on another computer, or append
-`init=/bin/bash` to `cmdline.txt` for a physical emergency shell and then revert
-it. See [docs/recovery.md](docs/recovery.md).
+There is **no default password and no usable kiosk login**. `root` and `pivista`
+are locked, cloud-init is disabled, and no `pi` account is created. SSH and VNC
+are installed but **off by default**; remote support uses a separate, non-sudo
+`support` account whose password is generated on the TV when you enable it.
+The HDMI/serial console is for boot messages, not administration. Recovery is
+offline: mount the card on another computer, or append `init=/bin/bash` to
+`cmdline.txt` for a physical emergency shell and then revert it. See
+[docs/recovery.md](docs/recovery.md).
 
 ## Remote control
 
 | Key | Action |
 |---|---|
-| Arrows | Move focus |
+| Arrows | Move focus; wraps around grids and rows |
 | Enter / OK | Select |
 | Escape / Backspace / remote Back | Back; from a top-level screen returns Home |
 | Home | Return to launcher from any app (global, handled by sway) |
 | Volume keys | PipeWire volume (global) |
 | F10 / Menu | Quick settings |
+| Tab / Shift+Tab | Next / previous focusable item |
 | Ctrl+Alt+F2 | Switch VT (boot console; accounts are locked, no shell) |
 | Ctrl+Alt+F1 | Back to the TV UI |
 
@@ -255,11 +267,21 @@ USB keyboards and remotes that emit standard key codes work without
 configuration; connect them to the **Pi**, not the television. A keyboard
 hot-plugged after boot can take a few seconds to enumerate. Unusual IR remotes
 can be mapped in `/etc/pivista/input.map`.
-The image contains BlueZ and the Bluetooth service is enabled, but this release
-has **no Bluetooth pairing screen**; a Bluetooth-only remote cannot be paired
-from the TV yet. Use USB for the first boot, or pair a device from a debug
-context before connecting it. HDMI-CEC is **not verified** on Pi 5; do not
-assume the TV remote will work without a USB receiver.
+
+Remote support is optional. **Settings → System → Remote access** can enable SSH
+and a localhost-only VNC server. SSH uses the dedicated, non-sudo `support`
+account with a random password shown on the TV. VNC is reached through an SSH
+tunnel (`ssh -L 5900:127.0.0.1:5900 support@<pi>`), never directly from the LAN.
+Both are off on a new image; see [docs/remote-access.md](docs/remote-access.md).
+
+Bluetooth-only remotes and keyboards can be paired from **Settings →
+Bluetooth** (scan, pair, trust, forget). Pairing is implemented in the control
+service and covered by mocked unit tests, but **no Bluetooth hardware has been
+tested here**; remotes that require a PIN are not supported yet. The wizard has
+an input check so a late-enumerating keyboard is visible before you continue.
+HDMI-CEC is still **off**: an adapter is detected and reported, but no key
+bridge is enabled, so a television's own remote will not control PiVista. Use
+USB when in doubt.
 
 ## Streaming, honestly
 
@@ -295,11 +317,13 @@ There are two separate update paths:
   recovered by reflashing a known-good image.
 
 A **0.1.0 or 0.2.0 card cannot install this updater in place** because those
-images have no update service or public key. They need one reflash to 0.3.1;
-from then on the
-launcher updater works. Full-image A/B updates (RAUC/`tryboot`) are investigated
-but not implemented, because they need a different partition layout and a
-one-time migration. Read [docs/updates.md](docs/updates.md) for the trust model,
+images have no update service or public key. They need one reflash to 0.3.2;
+from then on the launcher updater works. A **0.3.0/0.3.1 card can install
+launcher-only updates**, but 0.3.2's remote-support, Bluetooth and daemon changes
+are system-level and require the 0.3.2 image; the launcher update alone does not
+add them. Full-image A/B updates (RAUC/`tryboot`) are investigated but not
+implemented, because they need a different partition layout and a one-time
+migration. Read [docs/updates.md](docs/updates.md) for the trust model,
 release procedure and migration path, and [docs/recovery.md](docs/recovery.md)
 for recovery.
 
@@ -312,7 +336,8 @@ for recovery.
 | Wizard does not reappear after a reset | Remove `~/.config/PiVista/Launcher.conf` while the card is mounted; see [docs/recovery.md](docs/recovery.md) |
 | Wi-Fi will not join | Check the password dialog error; try Ethernet; hidden networks need a NetworkManager keyfile |
 | No audio | Settings → Audio → choose the HDMI sink → Play test sound |
-| Cannot reach Settings with a keyboard or remote | Test the next build in the [Windows preview](docs/windows-preview.md); 0.3.1 can trap focus between the featured banner and the first row |
+| Cannot reach Settings with a keyboard or remote | Press **Home** once, then check **Settings → Input**: run the input test and the focus self-check; 0.3.2 adds wrap-around navigation and repairs the Home-screen focus trap |
+| SSH or VNC will not connect | Enable it in Settings → Remote support; VNC needs the SSH tunnel. See [docs/remote-access.md](docs/remote-access.md) |
 | Wrong time zone/locale | Settings → Network/Display; the wizard can be re-run from Privacy and security |
 | Launcher update fails | Check the error in Settings → Updates; retry, or use **Roll back to previous launcher** if offered |
 | System package update fails | Do not power off; if it does not recover, reflash; there is no package rollback |

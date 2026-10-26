@@ -55,7 +55,12 @@ bind9-dnsutils
 curl
 ca-certificates
 
+# Remote support (off by default; see docs/remote-access.md)
+openssh-server
+wayvnc
+
 # Display / remote / diagnostics
+bluez
 wlr-randr
 evtest
 joystick

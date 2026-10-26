@@ -131,7 +131,13 @@ def check_rootfs(root: Path) -> dict:
         "usr/share/pivista/webapps/catalog.json",
         "usr/share/pivista/version.json",
         "etc/pivista/update-pubkey.pem",
+        "etc/ssh/sshd_config",
+        "etc/ssh/sshd_config.d/10-pivista.conf",
+        "usr/sbin/sshd",
+        "usr/bin/wayvnc",
+        "usr/lib/pivista/start-vnc.sh",
         "etc/systemd/system/pivista-daemon.service",
+        "etc/systemd/system/pivista-vnc.service",
         "etc/systemd/system/pivista-session.service",
         "etc/systemd/system/pivista-firstboot.service",
         "etc/systemd/system/pivista-input.service",
@@ -142,12 +148,32 @@ def check_rootfs(root: Path) -> dict:
 
     record("machine-id reset", (root / "etc/machine-id").is_file()
            and (root / "etc/machine-id").read_text().strip() == "")
-    record("ssh not enabled",
-           not (root / "etc/systemd/system/multi-user.target.wants/ssh.service").exists()
-           and not (root / "etc/systemd/system/multi-user.target.wants/sshd.service").exists())
-    record("ssh server not installed",
-           not (root / "usr/sbin/sshd").exists()
-           and not (root / "etc/ssh/sshd_config").exists())
+    record("SSH and VNC are installed but disabled",
+           (root / "usr/sbin/sshd").exists()
+           and (root / "etc/ssh/sshd_config").exists()
+           and (root / "usr/bin/wayvnc").exists()
+           and not (root / "etc/systemd/system/multi-user.target.wants/ssh.service").exists()
+           and not (root / "etc/systemd/system/multi-user.target.wants/sshd.service").exists()
+           and not (root / "etc/systemd/system/multi-user.target.wants/pivista-vnc.service").exists())
+    record("no SSH host keys shipped in the image",
+           not any((root / "etc/ssh").glob("ssh_host_*_key"))
+           and not any((root / "etc/ssh").glob("ssh_host_*_key.pub")))
+    dropin = root / "etc/ssh/sshd_config.d/10-pivista.conf"
+    dropin_text = dropin.read_text(errors="replace") if dropin.is_file() else ""
+    record("SSH is limited to the support account",
+           "AllowUsers support" in dropin_text
+           and "PermitRootLogin no" in dropin_text)
+
+    shadow = (root / "etc/shadow").read_text(errors="replace") if (root / "etc/shadow").is_file() else ""
+    support = re.search(r"^support:([^:]*):", shadow, re.M)
+    record("support account is locked", bool(support and support.group(1).startswith("!")))
+    group = (root / "etc/group").read_text(errors="replace") if (root / "etc/group").is_file() else ""
+    record("support is not in sudo",
+           not re.search(r"^(sudo|admin):[^\n]*\bsupport\b", group, re.M))
+    remote_dir = root / "etc/pivista/remote"
+    record("remote credentials directory is private",
+           remote_dir.is_dir() and (remote_dir.stat().st_mode & 0o777) == 0o700
+           and not (remote_dir / "ssh-password").exists())
     record("vendor first-boot helpers disabled",
            not (root / "etc/systemd/system/multi-user.target.wants/userconfig.service").exists()
            and not (root / "etc/systemd/system/multi-user.target.wants/sshswitch.service").exists())

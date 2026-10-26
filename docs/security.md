@@ -47,8 +47,16 @@ browser/session data.
   recreate `pi` with passwordless sudo on first boot, after the image build had
   removed it. The cloud-init units are masked and `/etc/cloud/cloud-init.disabled`
   is present. This is checked by image validation.
+- `support` is a separate remote-support account with no sudo, no PiVista group
+  membership and a locked password in the image. SSH is off by default; enabling
+  it in Settings generates a 20-character password on the device, unlocks only
+  this account and starts `ssh.service`. Disabling SSH locks it again and
+  deletes the password file.
+- `openssh-server` is installed but disabled. `ssh.socket` is masked so one
+  enable/disable action controls the listener. Host keys are generated on the
+  device at first SSH enable and are not shipped in the image.
 - `regenerate_ssh_host_keys.service` is masked so a first boot cannot recreate
-  `/etc/ssh` host keys. `openssh-server` is purged and SSH units are masked.
+  host keys behind PiVista's back.
 - The WiFi password is handed to NetworkManager, which stores it in
   `/etc/NetworkManager/system-connections/*` with mode 0600 (root only). It is
   passed to `nmcli` as an argv element for the duration of the connection, not
@@ -67,6 +75,7 @@ browser/session data.
 | Browser profiles (cookies, sessions) | `~/.config/pivista/browser/` | user `0700` |
 | User web shortcuts | `~/.config/pivista/webapps.json` | user |
 | Diagnostics | `/var/lib/pivista/diagnostics/` | directory `0755`; JSON file `0644` (local only; contains device serial and network addresses) |
+| SSH support password | `/etc/pivista/remote/ssh-password` | directory `0700 root`; file `0600 root`; removed when SSH is disabled |
 | Wi-Fi PSK | NetworkManager keyfile | `0600 root` |
 | Build provenance | `/etc/pivista/` | `0644` |
 
@@ -110,21 +119,32 @@ browser/session data.
 - The launcher runs third-party web content; Chromium's sandbox is the boundary.
 - Native `.desktop` entries in the user's own directory are executed as that
   user. They are not sandboxed. Only install software you trust.
+- An enabled SSH password is visible on the television to anyone in the room.
+  It is a support credential, not a secret against physical access. Disable SSH
+  when support is finished.
+- An enabled VNC server is reachable by anyone who can authenticate as `support`
+  or who already has a tunnel; it mirrors the television, including any visible
+  account prompts.
 - HDMI-CEC, if enabled later, would add an input path that must be reviewed.
 
 ## Hardening defaults in the image
 
-- No SSH server; no remote shell. `openssh-server` is purged and its units masked.
+- SSH and VNC are installed but disabled; there is no inbound listener on a
+  fresh image. `ssh.service` is disabled, `ssh.socket` is masked, and
+  `pivista-vnc.service` is disabled.
+- Only the non-sudo `support` account can authenticate to SSH; `PermitRootLogin
+  no` and `AllowUsers support` are enforced. The kiosk account stays locked.
+- VNC binds to `127.0.0.1:5900` only; it is reached through an SSH local forward.
 - Vendor `userconfig.service`, `sshswitch.service` and the whole cloud-init
   stack are masked; PiVista's own wizard owns first boot. Cloud-init seed files
   are removed from the boot partition.
-- `regenerate_ssh_host_keys.service` is masked; `/etc/ssh` stays absent.
-- No inbound listening services from PiVista.
+- `regenerate_ssh_host_keys.service` is masked; no host keys are shipped.
+- No inbound listening services from PiVista are enabled by default.
 - `kernel.dmesg_restrict=1`.
 - systemd service sandboxing for `pivistad`: private `/tmp`, read-only home,
   restricted address families, capability bounding set, `NoNewPrivileges`.
 - Build-time scan for private keys and cloud tokens; image validation repeats a
-  credential scan and checks the cloud-init/SSH masks.
+  credential scan, checks the SSH/VNC defaults and rejects shipped host keys.
 
 ## Local recovery boundary
 

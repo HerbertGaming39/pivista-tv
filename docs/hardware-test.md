@@ -6,7 +6,7 @@ because the screen looked plausible once.
 
 ## Before flashing
 
-- [ ] Image: `pivista-tv-0.3.1-pi5-arm64.img.xz` from the v0.3.1 GitHub
+- [ ] Image: `pivista-tv-0.3.2-pi5-arm64.img.xz` from the v0.3.2 GitHub
       release or `releases/` after a local build.
 - [ ] Compare the SHA-256 with the adjacent `.img.xz.sha256` file and the value
       published in the release notes (Windows `Get-FileHash`, Linux
@@ -26,6 +26,9 @@ because the screen looked plausible once.
 - [ ] Arrow keys / D-pad move focus; Enter/OK selects; Escape/Back returns.
 - [ ] Complete the wizard: language/time zone, network (or skip), display,
       audio, remote notes, privacy, summary.
+- [ ] On the network step choose **Set up Wi-Fi now**, then press Down once:
+      focus must move visibly and must not jump straight to **Do this later**.
+      Enter on the highlighted action performs that action only.
 - [ ] The home screen appears after **Start using PiVista TV**.
 - [ ] Reboot. The wizard does not reappear; the home screen returns.
 
@@ -50,8 +53,10 @@ because the screen looked plausible once.
 - [ ] USB keyboard: arrows, Enter, Escape and Home work.
 - [ ] USB or IR remote with standard key codes works without mapping.
 - [ ] A game controller appears in `evtest`; record unmapped buttons.
-- [ ] Bluetooth: record that this release has no pairing UI. If a device was
-      paired by hand, confirm it reconnects and its keys work.
+- [ ] Bluetooth: open Settings → Bluetooth; confirm the adapter is found,
+      scan with a remote in pairing mode, pair it and confirm its keys work.
+      Forget the device and pair again to prove the path is repeatable. If the
+      remote needs a PIN, record that limitation.
 - [ ] Launch a web app; press **Home** while Chromium is fullscreen.
       The streaming window closes and the launcher returns to Home.
 - [ ] Launch a native app; press **Home**. The app closes and Home returns.
@@ -64,6 +69,11 @@ because the screen looked plausible once.
 - [ ] **Games** opens and shows a clear empty state when no game is installed.
 - [ ] **Media** opens with the streaming row visible (not a blank page); a
       launch of a shortcut adds it to **Recently opened** on Home and Media.
+- [ ] In **Media**, press Right/Left through the streaming category chips and
+      Down into the row; every focused chip is visibly highlighted and Enter
+      filters the row.
+- [ ] Section changes fade rather than jump; with reduced motion enabled in
+      Settings → Appearance, the fade is skipped.
 - [ ] Pressing Down from the top navigation lands on the featured banner; Enter
       opens it; Down again reaches the first row.
 - [ ] **Apps → I** opens details; favourite/hide changes are reflected on Home.
@@ -128,7 +138,29 @@ Do not claim 1080p protected playback without a real player readout.
 - [ ] Read the journal by mounting the card on another Linux computer:
       `journalctl -D /mnt/var/log/journal -b`.
 - [ ] Confirm `/etc/pivista/build-provenance.txt` contains the build ID.
-- [ ] Confirm there is no `/etc/ssh` directory and no `pi` account.
+- [ ] Confirm there is no `pi` account and no SSH host key in the image before
+      remote support is enabled for the first time.
+
+## Remote support (optional, off by default)
+
+Record whether these work; they cannot be proven by host tests.
+
+- [ ] On a fresh card, `ssh support@<address>` from another computer is
+      refused (no listener) and VNC is not reachable.
+- [ ] Settings → Remote support → **Enable SSH** shows the address and a
+      20-character password; `ssh support@<address>` works with it.
+- [ ] The `support` account cannot run `sudo` and cannot read
+      `/home/pivista` or `/etc/shadow`.
+- [ ] **New SSH password** invalidates the old password after a reconnect;
+      **Disable SSH** stops the listener and locks the account.
+- [ ] With SSH enabled, **Enable VNC**, run
+      `ssh -L 5900:127.0.0.1:5900 support@<address>`, and point a VNC viewer at
+      `127.0.0.1:5900`; the television UI appears and accepts input.
+- [ ] Closing the SSH session disconnects VNC. **Disable VNC** stops the
+      service while SSH stays available.
+- [ ] Reboot with both enabled: SSH returns; VNC returns with the session.
+- [ ] Reflash and confirm the image does not reuse the old SSH host keys or
+      password.
 - [ ] Reflash once; confirm the wizard runs again and old settings are gone.
 
 ## Report

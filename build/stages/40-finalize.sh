@@ -41,17 +41,24 @@ stage_40_finalize() {
   rm -f "$ROOT_MNT/etc/resolv.conf.pivista"
 
   step "Hardening defaults"
-  # The vendor image ships openssh-server. A television has no remote
-  # administration surface, so remove it rather than merely disabling it.
-  if chroot_run dpkg -s openssh-server >/dev/null 2>&1; then
-    chroot_run apt-get purge -y openssh-server 2>&1 | tee -a "$BUILD_LOG" | tail -3
-  fi
-  chroot_run systemctl mask ssh.service sshd.service ssh.socket >/dev/null 2>&1 || true
-  rm -rf "$ROOT_MNT/etc/ssh"
+  # SSH and VNC are optional remote-support features, both disabled until the
+  # user enables them in Settings.  The server stays installed so enabling is
+  # offline and deterministic; the service is not enabled in the image.  Use
+  # the standalone ssh.service rather than socket activation so one toggle
+  # controls the listener.  Host keys are generated on the device at first
+  # enable, never shipped in the image.
+  chroot_run dpkg -s openssh-server >/dev/null 2>&1 \
+    || die "openssh-server is missing from the image"
+  chroot_run dpkg -s wayvnc >/dev/null 2>&1 \
+    || die "wayvnc is missing from the image"
+  chroot_run systemctl disable ssh.service ssh.socket pivista-vnc.service >/dev/null 2>&1 || true
+  chroot_run systemctl mask ssh.socket >/dev/null 2>&1 || true
+  rm -f "$ROOT_MNT"/etc/ssh/ssh_host_*_key "$ROOT_MNT"/etc/ssh/ssh_host_*_key.pub
+  install -d -m 0700 -o root -g root "$ROOT_MNT/etc/pivista/remote"
 
   step "Recording installed package versions"
   # Record after purges so the artifact manifest describes the shipped image,
-  # not the temporary build dependencies or the removed SSH server.
+  # not the temporary build dependencies.
   chroot_run dpkg-query -W -f='${Package}\t${Version}\t${Status}\n' \
     > "${STATE_DIR}/packages-installed.tsv" 2>/dev/null || true
   local pkg_count; pkg_count=$(wc -l < "${STATE_DIR}/packages-installed.tsv")

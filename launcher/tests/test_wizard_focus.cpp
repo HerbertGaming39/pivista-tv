@@ -30,6 +30,8 @@ class WizardFocusTest : public QObject
 private slots:
     void initTestCase();
     void firstBootWizardAcceptsRemoteKeys();
+    void networkStepOffersOneScanAction();
+    void remoteStepCanTestKeys();
     void finishingTheWizardActivatesHome();
 
 private:
@@ -112,6 +114,64 @@ void WizardFocusTest::firstBootWizardAcceptsRemoteKeys()
 
     // Backspace is documented as Back and must work as well.
     QTest::keyClick(window, Qt::Key_Backspace);
+    QTRY_COMPARE(wizard->property("step").toInt(), 0);
+}
+
+void WizardFocusTest::networkStepOffersOneScanAction()
+{
+    auto *window = qobject_cast<QQuickWindow *>(m_engine.rootObjects().first());
+    QVERIFY(window);
+    auto *wizard = window->findChild<QObject *>(QStringLiteral("wizard"));
+    QVERIFY(wizard);
+
+    wizard->setProperty("step", 2);
+    QTRY_COMPARE(wizard->property("step").toInt(), 2);
+
+    auto *network = wizard->findChild<QObject *>(QStringLiteral("wizardNetworkActions"));
+    QVERIFY(network);
+    // Scan starts automatically.  There must not be a second "Continue without
+    // network" row: Down used to land on it and Enter skipped the network by
+    // accident.  Continuing offline is the wizard's explicit Continue button.
+    QTRY_COMPARE(network->property("actions").toList().size(), 1);
+}
+
+void WizardFocusTest::remoteStepCanTestKeys()
+{
+    auto *window = qobject_cast<QQuickWindow *>(m_engine.rootObjects().first());
+    QVERIFY(window);
+    auto *wizard = window->findChild<QObject *>(QStringLiteral("wizard"));
+    QVERIFY(wizard);
+
+    wizard->setProperty("step", 5);
+    QTRY_COMPARE(wizard->property("step").toInt(), 5);
+
+    auto *remoteActions = wizard->findChild<QObject *>(QStringLiteral("wizardRemoteActions"));
+    QVERIFY(remoteActions);
+    QTRY_COMPARE(remoteActions->property("actions").toList().size(), 2);
+
+    auto *remoteItem = qobject_cast<QQuickItem *>(remoteActions);
+    QVERIFY(remoteItem);
+    QTRY_VERIFY_WITH_TIMEOUT([remoteItem] {
+        if (remoteItem->hasActiveFocus())
+            return true;
+        for (auto *child : remoteItem->findChildren<QQuickItem *>()) {
+            if (child->hasActiveFocus())
+                return true;
+        }
+        return false;
+    }(), 3000);
+
+    QTest::keyClick(window, Qt::Key_Return);
+    auto *probe = wizard->findChild<QQuickItem *>(QStringLiteral("wizardInputTest"));
+    QVERIFY(probe);
+    QTRY_VERIFY(probe->isVisible());
+    QTest::keyClick(window, Qt::Key_Right);
+    QTRY_VERIFY(probe->property("keyCount").toInt() >= 1);
+    QTest::keyClick(window, Qt::Key_Escape);
+    QTRY_VERIFY(!probe->isVisible());
+
+    // Leave the wizard at the first step for the completion test.
+    wizard->setProperty("step", 0);
     QTRY_COMPARE(wizard->property("step").toInt(), 0);
 }
 

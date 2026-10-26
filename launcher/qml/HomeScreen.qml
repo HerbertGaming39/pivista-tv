@@ -14,7 +14,7 @@ Item {
     function activeRow() {
         const rows = visibleRows()
         for (let i = 0; i < rows.length; ++i) {
-            if (rows[i].activeFocus)
+            if (rows[i].rowActiveFocus)
                 return rows[i]
         }
         return null

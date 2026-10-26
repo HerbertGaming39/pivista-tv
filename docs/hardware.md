@@ -75,17 +75,32 @@ empty. Do not replace it with estimates.
 ### 5. Input
 
 1. Arrow/Enter/Back/Home on a USB keyboard.
-2. A USB IR remote: confirm standard key codes work. Bluetooth hardware is
-   present and BlueZ runs, but there is no pairing UI in this release; record it
-   as a limitation rather than treating a USB dongle as Bluetooth input.
+2. A USB IR remote: confirm standard key codes work. For a Bluetooth device,
+   open **Settings → Bluetooth**, scan while the remote is in pairing mode and
+   pair it. Record whether the adapter appears, whether pairing succeeds and
+   whether keys survive a reconnect; a USB dongle is not Bluetooth input.
 3. A game controller: confirm it appears in `evtest`; document unmapped buttons.
 4. Home while Chromium is fullscreen: confirm it closes the web app and returns
    to the launcher (sway binding).
 5. Volume keys while Chromium is focused: confirm they change PipeWire volume.
-6. HDMI-CEC (only if testing it): enable `cec-utils`, confirm whether the TV
+6. In Media, move Right/Left through the streaming category chips, then Down
+   into the row; confirm focus is visible on every chip and Enter filters.
+7. In the wizard's network step, choose **Set up Wi-Fi now**, press Down once
+   and confirm focus moves one item rather than jumping to **Do this later**.
+8. HDMI-CEC (only if testing it): enable `cec-utils`, confirm whether the TV
    remote reaches the Pi; record the result honestly.
 
-### 6. Media and decode
+### 6. Remote support (optional)
+
+1. On a fresh install confirm `ssh support@<address>` is refused, then enable
+   SSH in **Settings → Remote support** and connect with the displayed password.
+2. Confirm `sudo -n true` fails and `/home/pivista` is unreadable as `support`.
+3. Enable VNC, tunnel with `ssh -L 5900:127.0.0.1:5900 support@<address>`, and
+   confirm a VNC viewer shows the live television UI. Confirm the Pi's LAN
+   address does not accept a direct VNC connection.
+4. Disable both, reboot, and confirm neither port is listening.
+
+### 7. Media and decode
 
 1. Play a local H.264 1080p file with `ffplay`/GStreamer and record CPU.
 2. Play a local HEVC 1080p file; check `v4l2-ctl --list-devices` and whether a
@@ -93,7 +108,7 @@ empty. Do not replace it with estimates.
 3. Record dropped frames and temperature. Do not equate low CPU with hardware
    decode.
 
-### 7. Reliability
+### 8. Reliability
 
 1. Ten consecutive boots.
 2. Kill the launcher (`systemctl restart pivista-session`); confirm recovery.

@@ -8,14 +8,17 @@ stage_30_overlay() {
               "$ROOT_MNT/usr/lib/pivista/firstboot.sh" \
               "$ROOT_MNT/usr/lib/pivista/input-setup.sh" \
               "$ROOT_MNT/usr/lib/pivista/launcher-loop.sh" \
-              "$ROOT_MNT/usr/lib/pivista/home.sh"
+              "$ROOT_MNT/usr/lib/pivista/home.sh" \
+              "$ROOT_MNT/usr/lib/pivista/start-vnc.sh"
   chmod 0644 "$ROOT_MNT/etc/pam.d/pivista" \
               "$ROOT_MNT/etc/pivista/session.conf" \
               "$ROOT_MNT/etc/pivista/input.map" \
               "$ROOT_MNT/etc/pivista/update-pubkey.pem" \
               "$ROOT_MNT/etc/pivista/sway/config" \
+              "$ROOT_MNT/etc/ssh/sshd_config.d/10-pivista.conf" \
               "$ROOT_MNT/etc/systemd/system/pivista-session.service" \
               "$ROOT_MNT/etc/systemd/system/pivista-daemon.service" \
+              "$ROOT_MNT/etc/systemd/system/pivista-vnc.service" \
               "$ROOT_MNT/etc/systemd/logind.conf.d/10-pivista.conf"
   ok "system files installed"
 
@@ -117,6 +120,21 @@ PY
     ok "created ${PIVISTA_USER} (uid ${PIVISTA_UID})"
   fi
 
+  step "Creating the remote-support account"
+  # SSH is optional and off by default.  Its account is deliberately separate
+  # from the kiosk user: it has no sudo, no PiVista group membership and cannot
+  # read the launcher's browser profile.  The password is locked until SSH is
+  # enabled from Settings, at which point the daemon generates a random one.
+  if chroot_run id -u support >/dev/null 2>&1; then
+    ok "remote-support account already exists"
+  else
+    chroot_run useradd --create-home --uid 1001 --user-group \
+      --shell /bin/bash --comment "PiVista remote support" support
+    chroot_run passwd --lock support >/dev/null
+    ok "created support (uid 1001, password locked)"
+  fi
+  install -d -m 0700 -o root -g root "$ROOT_MNT/etc/pivista/remote"
+
   # install(1) resolves users against the *host*, so create the directories and
   # apply numeric ownership afterwards.
   install -d -m 0750 "$ROOT_MNT${PIVISTA_HOME}" \
@@ -135,9 +153,12 @@ PY
   enable_unit "$ROOT_MNT" pivista-session.service graphical.target
   enable_unit "$ROOT_MNT" pivista-firstboot.service multi-user.target
   enable_unit "$ROOT_MNT" pivista-input.service multi-user.target
+  # Bluetooth remotes are paired from Settings; bluez must be running for that
+  # page to see an adapter. It does not pair anything by itself.
+  enable_unit "$ROOT_MNT" bluetooth.service multi-user.target
   # Vendor first-boot assistants are replaced by PiVista's own wizard. The
-  # stock userconf service would open an account dialog on tty8; sshswitch has
-  # no SSH server to switch on because stage 40 removes it.
+  # stock userconf service would open an account dialog on tty8; sshswitch is
+  # masked because SSH is controlled by Settings and the PiVista daemon.
   #
   # cloud-init is disabled deliberately: its Raspberry Pi OS default user is
   # `pi` with NOPASSWD sudo, and it runs on first boot even though the build

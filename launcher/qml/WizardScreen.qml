@@ -16,12 +16,14 @@ Item {
     property var wifi: []
     property var display: ({})
     property var audio: ({})
+    property var input: ({})
     property var pending: ({})
     property string wifiSsid: ""
     property string message: ""
     property bool messageIsError: false
     property string setupWarning: ""
     property bool finishing: false
+    property bool scanning: false
 
     signal completed()
 
@@ -46,10 +48,24 @@ Item {
     }
 
     function scanWifi() {
+        if (scanning)
+            return
+        scanning = true
         api("network.scan", { rescan: true }, function (data) {
+            scanning = false
             wifi = data.networks || []
-            if (wifi.length > 0) wifiList.focusFirst()
-        }, 60000, function (message) { wizard.notify(message, true) })
+            if (wizard.step !== 2)
+                return
+            if (wifi.length > 0)
+                wifiList.focusFirst()
+            else
+                networkActions.focusFirst()
+        }, 60000, function (message) {
+            scanning = false
+            wizard.notify(message, true)
+            if (wizard.step === 2)
+                networkActions.focusFirst()
+        })
     }
 
     function connectWifi(ssid, secure) {
@@ -76,6 +92,12 @@ Item {
 
     function loadDisplay() { api("display.status", {}, function (data) { display = data }) }
     function loadAudio() { api("audio.status", {}, function (data) { audio = data }) }
+    function loadInput() {
+        api("input.status", {}, function (data) { input = data }, 15000, function (message) {
+            input = ({ devices: [], keyboard_count: 0, remote_count: 0 })
+            wizard.notify(message, true)
+        })
+    }
 
     function focusStep() {
         let focused = false
@@ -84,6 +106,7 @@ Item {
         else if (step === 2) focused = networkActions.focusFirst()
         else if (step === 3) focused = displayList.focusFirst()
         else if (step === 4) focused = audioList.focusFirst()
+        else if (step === 5) focused = remoteActions.focusFirst()
         // A display/audio probe can legitimately return no entries (no HDMI,
         // no sink yet). Never leave the remote with nowhere to focus.
         if (!focused)
@@ -149,9 +172,15 @@ Item {
     }
 
     onStepChanged: {
-        if (step === 2) refreshNetwork()
-        else if (step === 3) loadDisplay()
+        if (step === 2) {
+            refreshNetwork()
+            // Scan automatically.  Asking the user to select Scan left them on
+            // the old "Continue without network" row when they pressed Down,
+            // which made the remote skip the network step by accident.
+            scanWifi()
+        } else if (step === 3) loadDisplay()
         else if (step === 4) loadAudio()
+        else if (step === 5) loadInput()
         Qt.callLater(focusStep)
     }
 
@@ -343,21 +372,23 @@ Item {
                     }
                     ActionList {
                         id: networkActions
+                        objectName: "wizardNetworkActions"
                         width: parent.width
                         actions: [
-                            { label: "Scan for Wi-Fi networks", detail: "Ethernet is used automatically" },
-                            { label: "Continue without network", detail: "configure later in Settings" }
+                            {
+                                label: wizard.scanning ? "Scanning for Wi-Fi networks…" : "Scan for Wi-Fi networks",
+                                detail: wizard.scanning ? "please wait" : "Ethernet is used automatically"
+                            }
                         ]
                         onTriggered: function (index) {
                             if (index === 0) wizard.scanWifi()
-                            else navActions.focusAt(0)
                         }
                         onNavigateDown: if (wifiList.actions.length > 0) wifiList.focusFirst(); else navActions.focusAt(0)
                     }
                     Text {
                         visible: wizard.wifi.length === 0
                         width: parent.width
-                        text: "No Wi-Fi networks listed yet. Select Scan, or connect Ethernet and continue."
+                        text: "No Wi-Fi networks listed yet. Scanning starts automatically; use Continue below to finish setup offline."
                         color: Theme.textFaint
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.s(14)
@@ -490,11 +521,21 @@ Item {
                     Text { text: "Remote and keyboard"; color: Theme.text; font.family: Theme.fontFamily; font.pixelSize: Theme.s(28); font.weight: Font.DemiBold }
                     Text {
                         width: parent.width
-                        text: "PiVista TV accepts USB keyboards, USB/IR media remotes that send standard key codes, and game controllers. Use the arrow keys or D-pad to move, Enter or OK to select, Back/Escape to return, and Home to leave any app. Bluetooth hardware is present, but this release has no Bluetooth pairing screen; use USB for setup."
+                        text: "PiVista TV accepts USB keyboards, USB/IR media remotes that send standard key codes, and game controllers. Use the arrow keys or D-pad to move, Enter or OK to select, Back/Escape to return, and Home to leave any app. Bluetooth keyboards and remotes can be paired later in Settings \u2192 Bluetooth; for this first setup, a USB device is the most reliable."
                         color: Theme.textDim
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.s(15)
                         wrapMode: Text.WordWrap
+                    }
+                    Text {
+                        width: parent.width
+                        text: (wizard.input.keyboard_count || 0) + " keyboard" + ((wizard.input.keyboard_count || 0) === 1 ? "" : "s")
+                              + " and " + (wizard.input.remote_count || 0) + " remote"
+                              + ((wizard.input.remote_count || 0) === 1 ? "" : "s") + " seen by the Pi."
+                        color: (wizard.input.keyboard_count || 0) + (wizard.input.remote_count || 0) > 0
+                               ? Theme.good : Theme.warn
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.s(14)
                     }
                     Text {
                         width: parent.width
@@ -503,6 +544,20 @@ Item {
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.s(14)
                         wrapMode: Text.WordWrap
+                    }
+                    ActionList {
+                        id: remoteActions
+                        objectName: "wizardRemoteActions"
+                        width: parent.width
+                        actions: [
+                            { label: "Test key presses", detail: "recommended before continuing" },
+                            { label: "Refresh input devices", detail: "re-read the kernel list" }
+                        ]
+                        onTriggered: function (index) {
+                            if (index === 0) inputTest.open()
+                            else wizard.loadInput()
+                        }
+                        onNavigateDown: navActions.focusAt(0)
                     }
                 }
 
@@ -597,6 +652,12 @@ Item {
             elide: Text.ElideRight
             horizontalAlignment: Text.AlignHCenter
         }
+    }
+
+    InputTestDialog {
+        id: inputTest
+        objectName: "wizardInputTest"
+        onClosed: remoteActions.focusFirst()
     }
 
     TextEntryDialog {

@@ -34,7 +34,7 @@ Item {
         }
         let current = -1
         for (let i = 0; i < rows.length; ++i) {
-            if (rows[i].activeFocus)
+            if (rows[i].rowActiveFocus)
                 current = i
         }
         if (current < 0)

@@ -26,6 +26,7 @@ import os
 import platform
 import pwd
 import re
+import secrets
 import shutil
 import signal
 import socket
@@ -40,7 +41,7 @@ from typing import Any, Callable
 
 from pivista_update import UpdateError, UpdateManager
 
-VERSION = "0.3.1"
+VERSION = "0.3.2"
 MAX_MESSAGE = 64 * 1024
 DEFAULT_SOCKET = "/run/pivista/control.sock"
 DEFAULT_CONFIG = "/etc/pivista"
@@ -66,7 +67,8 @@ class Runner:
         self.timeout = timeout
 
     def run(self, argv: list[str], timeout: int | None = None,
-            env: dict[str, str] | None = None, check: bool = False) -> subprocess.CompletedProcess:
+            env: dict[str, str] | None = None, check: bool = False,
+            input_text: str | None = None) -> subprocess.CompletedProcess:
         if not argv or not all(isinstance(a, str) for a in argv):
             raise ActionError("invalid_command", "command must be a list of strings")
         child_env = None
@@ -80,6 +82,7 @@ class Runner:
                 text=True,
                 timeout=timeout or self.timeout,
                 env=child_env,
+                input=input_text,
                 check=False,
             )
         except FileNotFoundError:
@@ -100,6 +103,64 @@ def read_text(path: str, default: str = "") -> str:
             return fh.read().strip()
     except OSError:
         return default
+
+
+def parse_input_devices(text: str) -> list[dict[str, Any]]:
+    """Parse /proc/bus/input/devices into the keyboards and remotes the TV sees.
+
+    A kernel input device is useful to the launcher only when it emits key
+    events.  This deliberately reports every such device, including ones the
+    compositor may not have focused, so Settings can show a keyboard that was
+    hot-plugged after the wizard appeared.
+    """
+    devices: list[dict[str, Any]] = []
+    for block in re.split(r"\n\s*\n", text.strip()):
+        if not block.strip():
+            continue
+        name = ""
+        handlers: list[str] = []
+        sysfs = ""
+        key_bits = False
+        for line in block.splitlines():
+            if line.startswith("N: Name="):
+                match = re.search(r'Name="([^"]*)"', line)
+                name = match.group(1) if match else ""
+            elif line.startswith("H: Handlers="):
+                handlers = line.split("=", 1)[1].split()
+            elif line.startswith("S: Sysfs="):
+                sysfs = line.split("=", 1)[1].strip()
+            elif line.startswith("B: KEY="):
+                bits = line.split("=", 1)[1].split()
+                key_bits = any(part not in {"0", ""} for part in bits)
+        if not handlers:
+            continue
+        event = next((h for h in handlers if h.startswith("event")), "")
+        if not event:
+            continue
+        lowered = name.lower()
+        is_keyboard = "kbd" in handlers or any(
+            word in lowered for word in ("keyboard", "remote", "receiver", "consumer control")
+        )
+        if not is_keyboard and not key_bits:
+            continue
+        if is_keyboard and "remote" in lowered:
+            kind = "remote"
+        elif is_keyboard:
+            kind = "keyboard"
+        elif any(word in lowered for word in ("remote", "receiver", "consumer control")):
+            kind = "remote"
+        else:
+            kind = "input"
+        devices.append({
+            "name": name or "Unnamed input device",
+            "kind": kind,
+            "event": "/dev/input/" + event,
+            "handlers": handlers,
+            "sysfs": sysfs,
+        })
+    kind_order = {"keyboard": 0, "remote": 1, "input": 2}
+    devices.sort(key=lambda device: (kind_order.get(device["kind"], 3), device["name"]))
+    return devices
 
 
 def parse_escaped_colon(line: str) -> list[str]:
@@ -128,6 +189,8 @@ class ServiceContext:
     config_dir: str = DEFAULT_CONFIG
     state_dir: str = DEFAULT_STATE
     log_dir: str = DEFAULT_LOG_DIR
+    remote_dir: str = "/etc/pivista/remote"
+    sshd_path: str = "/usr/sbin/sshd"
     session_uid: int = SESSION_UID
     session_group: str = SESSION_GROUP
     update_public_key: str = "/etc/pivista/update-pubkey.pem"
@@ -158,6 +221,12 @@ class ControlService:
             "system.set_timezone": self.set_timezone,
             "system.set_locale": self.set_locale,
             "system.set_hostname": self.set_hostname,
+            "input.status": self.input_status,
+            "bluetooth.status": self.bluetooth_status,
+            "bluetooth.scan": self.bluetooth_scan,
+            "bluetooth.pair": self.bluetooth_pair,
+            "bluetooth.disconnect": self.bluetooth_disconnect,
+            "bluetooth.forget": self.bluetooth_forget,
             "power.reboot": self.reboot,
             "power.shutdown": self.shutdown,
             "network.status": self.network_status,
@@ -184,6 +253,12 @@ class ControlService:
             "app.update.rollback": self.app_update_rollback,
             "app.update.restart": self.app_update_restart,
             "android.status": self.android_status,
+            "remote.status": self.remote_status,
+            "remote.ssh.enable": self.remote_ssh_enable,
+            "remote.ssh.disable": self.remote_ssh_disable,
+            "remote.ssh.rotate": self.remote_ssh_rotate,
+            "remote.vnc.enable": self.remote_vnc_enable,
+            "remote.vnc.disable": self.remote_vnc_disable,
             "diagnostics.export": self.diagnostics_export,
             "logs.tail": self.logs_tail,
             "build.provenance": self.build_provenance,
@@ -261,15 +336,162 @@ class ControlService:
             "os": release.get("PRETTY_NAME", ""),
             "debian": release.get("VERSION_CODENAME", ""),
             "hostname": socket.gethostname(),
+            "timezone": read_text("/etc/timezone"),
+            "locale": self._locale(),
             "serial": self._serial(),
             "memory_total_kb": mem_total,
             "memory_available_kb": mem_avail,
             "cpu_count": os.cpu_count(),
         }
 
+    def _locale(self) -> str:
+        for line in read_text("/etc/default/locale").splitlines():
+            if line.startswith("LANG="):
+                return line.split("=", 1)[1].strip().strip('"')
+        return os.environ.get("LANG", "") or "unknown"
+
     def _serial(self) -> str:
         serial = read_text("/proc/device-tree/serial-number", "")
         return serial or "unknown"
+
+    BT_ADDRESS = re.compile(r"^[0-9A-F]{2}(?::[0-9A-F]{2}){5}$")
+
+    @staticmethod
+    def _parse_bluetooth_devices(text: str) -> list[dict]:
+        devices: list[dict] = []
+        for line in text.splitlines():
+            line = re.sub(r"\x1b\[[0-9;]*m", "", line).strip()
+            match = re.match(r"(?:\[NEW\]\s*)?Device ([0-9A-Fa-f:]{17}) (.+)$", line)
+            if not match:
+                continue
+            name = match.group(2).strip()
+            devices.append({
+                "address": match.group(1).upper(),
+                "name": name or "Unnamed device",
+            })
+        return devices
+
+    def _bluetooth_paired(self) -> list[dict]:
+        completed = self.ctx.runner.run(
+            ["bluetoothctl", "devices", "Paired"], timeout=10)
+        if completed.returncode != 0:
+            # Older BlueZ releases do not implement the Paired argument. Fall
+            # back to the full list rather than failing the whole page.
+            completed = self.ctx.runner.run(["bluetoothctl", "devices"], timeout=10)
+        return self._parse_bluetooth_devices(completed.stdout)
+
+    def bluetooth_status(self, _params: dict) -> dict:
+        try:
+            show = self.ctx.runner.run(["bluetoothctl", "show"], timeout=10)
+        except ActionError as exc:
+            return {
+                "available": False, "powered": False, "discovering": False,
+                "adapter": "", "paired": [], "error": exc.message,
+            }
+        text = show.stdout if show.returncode == 0 else ""
+        powered = re.search(r"Powered:\s+yes", text) is not None
+        discovering = re.search(r"Discovering:\s+yes", text) is not None
+        adapter = ""
+        match = re.search(r"Controller ([0-9A-Fa-f:]{17})", text)
+        if match:
+            adapter = match.group(1).upper()
+        try:
+            paired = self._bluetooth_paired() if show.returncode == 0 else []
+        except ActionError:
+            paired = []
+        return {
+            "available": show.returncode == 0,
+            "powered": powered,
+            "discovering": discovering,
+            "adapter": adapter,
+            "paired": paired,
+            "error": "" if show.returncode == 0
+                     else (show.stderr or "The Bluetooth service is not available.").strip()[:300],
+        }
+
+    def bluetooth_scan(self, params: dict) -> dict:
+        if params.get("confirm") is not True:
+            raise ActionError("confirmation_required", "scanning for Bluetooth devices requires confirm=true")
+        completed = self.ctx.runner.run(
+            ["bluetoothctl", "--timeout", "8", "scan", "on"], timeout=20)
+        if completed.returncode != 0:
+            raise ActionError(
+                "bluetooth_scan_failed",
+                (completed.stderr or completed.stdout).strip()[:300]
+                or "Bluetooth scanning failed.",
+            )
+        paired = self._bluetooth_paired()
+        paired_addresses = {device["address"] for device in paired}
+        discovered = []
+        for device in self._parse_bluetooth_devices(completed.stdout):
+            device["paired"] = device["address"] in paired_addresses
+            discovered.append(device)
+        # Some BlueZ versions print discoveries to stderr. Merge both streams.
+        for device in self._parse_bluetooth_devices(completed.stderr):
+            if not any(item["address"] == device["address"] for item in discovered):
+                device["paired"] = device["address"] in paired_addresses
+                discovered.append(device)
+        return {"devices": discovered, "paired": paired, "scanned": True}
+
+    def bluetooth_pair(self, params: dict) -> dict:
+        if params.get("confirm") is not True:
+            raise ActionError("confirmation_required", "pairing a Bluetooth device requires confirm=true")
+        address = params.get("address")
+        if not isinstance(address, str) or not self.BT_ADDRESS.fullmatch(address.upper()):
+            raise ActionError("invalid_address", "invalid Bluetooth address")
+        address = address.upper()
+        paired = self.ctx.runner.run(
+            ["bluetoothctl", "--timeout", "30", "pair", address], timeout=45)
+        if paired.returncode != 0:
+            raise ActionError(
+                "bluetooth_pair_failed",
+                (paired.stderr or paired.stdout).strip()[:300]
+                or "Pairing failed. Some remotes require a PIN and are not supported yet.",
+            )
+        # Trust is what lets a remote reconnect after it sleeps. Connect is
+        # best-effort: some remotes only connect when a button is pressed.
+        self.ctx.runner.run(["bluetoothctl", "trust", address], timeout=15)
+        self.ctx.runner.run(["bluetoothctl", "connect", address], timeout=20)
+        return self.bluetooth_status({})
+
+    def bluetooth_disconnect(self, params: dict) -> dict:
+        address = params.get("address")
+        if not isinstance(address, str) or not self.BT_ADDRESS.fullmatch(address.upper()):
+            raise ActionError("invalid_address", "invalid Bluetooth address")
+        self.ctx.runner.run(["bluetoothctl", "disconnect", address.upper()], timeout=20)
+        return self.bluetooth_status({})
+
+    def bluetooth_forget(self, params: dict) -> dict:
+        if params.get("confirm") is not True:
+            raise ActionError("confirmation_required", "forgetting a device requires confirm=true")
+        address = params.get("address")
+        if not isinstance(address, str) or not self.BT_ADDRESS.fullmatch(address.upper()):
+            raise ActionError("invalid_address", "invalid Bluetooth address")
+        self.ctx.runner.run(["bluetoothctl", "remove", address.upper()], timeout=20)
+        return self.bluetooth_status({})
+
+    def input_status(self, _params: dict) -> dict:
+        """What keyboards/remotes the kernel currently has, for Settings > Input."""
+        devices = parse_input_devices(read_text("/proc/bus/input/devices"))
+        keyboards = [device for device in devices if device["kind"] == "keyboard"]
+        remotes = [device for device in devices if device["kind"] == "remote"]
+        cec_adapters = sorted(glob.glob("/dev/cec[0-9]*"))
+        return {
+            "devices": devices,
+            "keyboard_count": len(keyboards),
+            "remote_count": len(remotes),
+            "input_map": "/etc/pivista/input.map",
+            "input_map_present": os.path.exists("/etc/pivista/input.map"),
+            "cec": {
+                "adapter_detected": bool(cec_adapters),
+                "adapters": cec_adapters,
+                "tool_present": shutil.which("cec-client") is not None,
+                # CEC is not enabled by this build. Do not present it as a
+                # working remote path until key translation is implemented and
+                # tested on hardware.
+                "enabled": False,
+            },
+        }
 
     def _memory(self) -> tuple[int, int]:
         values: dict[str, int] = {}
@@ -785,6 +1007,156 @@ class ControlService:
         return {"restarting": True}
 
     # -- android ----------------------------------------------------------
+    # -- remote support ---------------------------------------------------
+    #
+    # SSH is off by default and only the dedicated, non-sudo `support` account
+    # is allowed.  Its password is generated on the device when SSH is enabled
+    # and stored root-only.  VNC is bound to 127.0.0.1 by pivista-vnc.service;
+    # it is reached through an SSH local-forward, never exposed directly.
+    REMOTE_PASSWORD_ALPHABET = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
+    def _systemd_active(self, unit: str) -> bool:
+        completed = self.ctx.runner.run(
+            ["/usr/bin/systemctl", "is-active", "--quiet", unit], timeout=8)
+        return completed.returncode == 0
+
+    def _systemd_enabled(self, unit: str) -> bool:
+        completed = self.ctx.runner.run(
+            ["/usr/bin/systemctl", "is-enabled", "--quiet", unit], timeout=8)
+        return completed.returncode == 0
+
+    def _remote_password_path(self) -> str:
+        return os.path.join(self.ctx.remote_dir, "ssh-password")
+
+    def _read_remote_password(self) -> str:
+        try:
+            with open(self._remote_password_path(), encoding="utf-8") as fh:
+                return fh.read().strip()
+        except OSError:
+            return ""
+
+    def _write_remote_password(self, password: str) -> None:
+        os.makedirs(self.ctx.remote_dir, mode=0o700, exist_ok=True)
+        os.chmod(self.ctx.remote_dir, 0o700)
+        path = self._remote_password_path()
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(password + "\n")
+        os.chmod(path, 0o600)
+
+    def _new_remote_password(self) -> str:
+        return "".join(secrets.choice(self.REMOTE_PASSWORD_ALPHABET) for _ in range(20))
+
+    def _set_support_password(self, password: str) -> None:
+        self.ctx.runner.run(
+            ["/usr/sbin/chpasswd"],
+            timeout=15,
+            check=True,
+            input_text="support:" + password + "\n",
+        )
+
+    def _lock_support(self) -> None:
+        self.ctx.runner.run(["/usr/bin/passwd", "--lock", "support"], timeout=10)
+
+    def _remote_ip(self) -> str:
+        try:
+            return self._network_summary().get("ip", "") or ""
+        except Exception:
+            return ""
+
+    def remote_status(self, _params: dict) -> dict:
+        ssh_enabled = self._systemd_enabled("ssh.service")
+        ssh_active = self._systemd_active("ssh.service")
+        vnc_enabled = self._systemd_enabled("pivista-vnc.service")
+        vnc_active = self._systemd_active("pivista-vnc.service")
+        password = self._read_remote_password() if (ssh_enabled or ssh_active) else ""
+        return {
+            "hostname": socket.gethostname(),
+            "ip": self._remote_ip(),
+            "ssh_enabled": ssh_enabled,
+            "ssh_active": ssh_active,
+            "ssh_user": "support",
+            "ssh_port": 22,
+            "ssh_password": password,
+            "vnc_enabled": vnc_enabled,
+            "vnc_active": vnc_active,
+            "vnc_host": "127.0.0.1",
+            "vnc_port": 5900,
+        }
+
+    def remote_ssh_enable(self, params: dict) -> dict:
+        if params.get("confirm") is not True:
+            raise ActionError("confirmation_required", "enabling SSH requires confirm=true")
+        if not os.path.exists(self.ctx.sshd_path):
+            raise ActionError("not_installed", "The SSH server is not installed on this image.")
+        password = self._read_remote_password() or self._new_remote_password()
+        self._write_remote_password(password)
+        try:
+            self._set_support_password(password)
+        except Exception:
+            try:
+                os.unlink(self._remote_password_path())
+            except FileNotFoundError:
+                pass
+            raise
+        self.ctx.runner.run(["/usr/bin/ssh-keygen", "-A"], timeout=20, check=True)
+        self.ctx.runner.run(
+            ["/usr/bin/systemctl", "unmask", "ssh.service"], timeout=10)
+        started = self.ctx.runner.run(
+            ["/usr/bin/systemctl", "enable", "--now", "ssh.service"], timeout=30)
+        if started.returncode != 0:
+            raise ActionError(
+                "ssh_failed",
+                (started.stderr or started.stdout).strip()[:300]
+                or "The SSH service could not be started.",
+            )
+        return self.remote_status({})
+
+    def remote_ssh_disable(self, params: dict) -> dict:
+        if params.get("confirm") is not True:
+            raise ActionError("confirmation_required", "disabling SSH requires confirm=true")
+        self.ctx.runner.run(
+            ["/usr/bin/systemctl", "disable", "--now", "ssh.service"], timeout=30)
+        self._lock_support()
+        try:
+            os.unlink(self._remote_password_path())
+        except FileNotFoundError:
+            pass
+        return self.remote_status({})
+
+    def remote_ssh_rotate(self, params: dict) -> dict:
+        if params.get("confirm") is not True:
+            raise ActionError("confirmation_required", "rotating the SSH password requires confirm=true")
+        password = self._new_remote_password()
+        self._write_remote_password(password)
+        self._set_support_password(password)
+        return self.remote_status({})
+
+    def remote_vnc_enable(self, params: dict) -> dict:
+        if params.get("confirm") is not True:
+            raise ActionError("confirmation_required", "enabling VNC requires confirm=true")
+        if not (self._systemd_enabled("ssh.service") or self._systemd_active("ssh.service")):
+            raise ActionError(
+                "ssh_required",
+                "Enable SSH first: VNC listens only on localhost and is reached through an SSH tunnel.",
+            )
+        started = self.ctx.runner.run(
+            ["/usr/bin/systemctl", "enable", "--now", "pivista-vnc.service"], timeout=30)
+        if started.returncode != 0:
+            raise ActionError(
+                "vnc_failed",
+                (started.stderr or started.stdout).strip()[:300]
+                or "The VNC service could not be started.",
+            )
+        return self.remote_status({})
+
+    def remote_vnc_disable(self, params: dict) -> dict:
+        if params.get("confirm") is not True:
+            raise ActionError("confirmation_required", "disabling VNC requires confirm=true")
+        self.ctx.runner.run(
+            ["/usr/bin/systemctl", "disable", "--now", "pivista-vnc.service"], timeout=30)
+        return self.remote_status({})
+
     def android_status(self, _params: dict) -> dict:
         waydroid = shutil.which("waydroid")
         binder = os.path.exists("/dev/binderfs") or os.path.exists("/dev/binder")

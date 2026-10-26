@@ -79,7 +79,7 @@ jobs:
         run: ctest --test-dir build/launcher-tests --output-on-failure
 
       - name: Offscreen UI smoke test
-        run: ./tests/ui/render_screens.sh build/launcher-tests/pivista-launcher
+        run: bash ./tests/ui/render_screens.sh build/launcher-tests/pivista-launcher
 
       - name: Upload UI screenshots
         if: always()

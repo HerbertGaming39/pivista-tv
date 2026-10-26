@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "daemon"))
@@ -298,15 +299,21 @@ class UpdateTests(unittest.TestCase):
         self.assertEqual(runner.calls[-1][:3], ["systemctl", "restart", "pivista-session.service"])
 
     def test_app_update_status_is_readable_on_a_non_product_host(self):
-        status = service_with(StubRunner()).app_update_status({})
-        self.assertIn(status["installed"], {"unknown", "0.3.0"})
+        # Do not read the build host's /usr/share/pivista/version.json: a
+        # developer machine may have one installed from a previous test.
+        with mock.patch("pivistad.UpdateManager.installed_version", return_value="unknown"):
+            status = service_with(StubRunner()).app_update_status({})
+        self.assertEqual(status["installed"], "unknown")
         self.assertIn("job", status)
 
 
 class DisplayTests(unittest.TestCase):
     def test_display_summary_empty_is_safe(self):
         svc = service_with(StubRunner())
-        summary = svc._display_summary()
+        # CI runners expose a virtual DRM connector from the host, so this
+        # must not rely on the build machine having no /sys/class/drm entries.
+        with mock.patch("pivistad.glob.glob", return_value=[]):
+            summary = svc._display_summary()
         self.assertFalse(summary["available"])
         self.assertEqual(summary["outputs"], [])
 

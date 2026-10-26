@@ -134,7 +134,7 @@ Status vocabulary:
 | Dependency pinning | Verified — [manifest/base-image.lock](manifest/base-image.lock) |
 | Build logs | Implemented — `build/logs/build-<id>.log` |
 | Automated tests | Verified — 82 host Python tests, 15 launcher/Qt cases, 37 offscreen renders, 61 image checks |
-| Launcher CI workflow | Implemented — arm64 `debian:trixie` build, Python/Qt/UI tests, tag packages a bundle and attaches it to the release; signing requires the optional CI secret |
+| Launcher CI workflow | Verified (build/test) — [run 40359943721](https://github.com/HerbertGaming39/pivista-tv/actions/runs/40359943721) on 2026-10-26 built on arm64 and passed 82 Python tests, 15 Qt cases and 37 renders. The tag packaging/publish path is implemented and its commands were exercised locally, but no new tag has run it yet |
 | App-update archive reproducibility | Verified — deterministic tar metadata/xz; builder test compares two builds |
 | Image integrity | Verified — SHA-256 matches; `xz -t` passes |
 | Software licence notices | Implemented — `/usr/share/doc` retained in image |

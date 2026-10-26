@@ -134,6 +134,7 @@ Status vocabulary:
 | Dependency pinning | Verified — [manifest/base-image.lock](manifest/base-image.lock) |
 | Build logs | Implemented — `build/logs/build-<id>.log` |
 | Automated tests | Verified — 82 host Python tests, 15 launcher/Qt cases, 37 offscreen renders, 61 image checks |
+| Launcher CI workflow | Implemented — arm64 `debian:trixie` build, Python/Qt/UI tests, tag packages a bundle and attaches it to the release; signing requires the optional CI secret |
 | App-update archive reproducibility | Verified — deterministic tar metadata/xz; builder test compares two builds |
 | Image integrity | Verified — SHA-256 matches; `xz -t` passes |
 | Software licence notices | Implemented — `/usr/share/doc` retained in image |

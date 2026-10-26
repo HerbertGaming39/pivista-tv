@@ -1,0 +1,173 @@
+name: Launcher
+
+# Builds the Qt launcher on an arm64 runner with the same Debian trixie Qt
+# version as the image.  Every push and pull request runs the Python, Qt and
+# offscreen UI tests.  A v* tag additionally packages the launcher bundle and
+# attaches it to the GitHub release.
+#
+# The update channel requires an Ed25519 signature.  Set the repository secret
+# PIVISTA_UPDATE_SIGNING_KEY to sign bundles in CI; without it the workflow
+# produces an unsigned bundle, clearly marked, which Settings -> Updates will
+# not accept.  See docs/build.md.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: launcher-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and test (arm64)
+    runs-on: ubuntu-24.04-arm
+    container: debian:trixie
+    steps:
+      - name: Install git for checkout
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            git ca-certificates
+
+      - uses: actions/checkout@v4
+
+      - name: Install Qt 6 and build tools
+        run: |
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            build-essential cmake pkg-config python3 xz-utils openssl \
+            qt6-base-dev qt6-declarative-dev qt6-qpa-plugins \
+            qml6-module-qtquick qml6-module-qtquick-controls \
+            qml6-module-qtquick-window qml6-module-qtquick-shapes \
+            qml6-module-qtquick-layouts qml6-module-qtquick-templates \
+            qml6-module-qt-labs-settings qml6-module-qtqml \
+            qml6-module-qtqml-workerscript libgl1-mesa-dri fonts-inter
+
+      - name: Read product version
+        id: product
+        run: |
+          version="$(sed -n 's/^PIVISTA_VERSION="\(.*\)"/\1/p' config/product.env)"
+          test -n "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Check tag matches the product version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          test "${GITHUB_REF_NAME#v}" = "${{ steps.product.outputs.version }}" || {
+            echo "::error::tag ${GITHUB_REF_NAME} does not match config/product.env ${{ steps.product.outputs.version }}"
+            exit 1
+          }
+
+      - name: Configure
+        run: |
+          cmake -S launcher -B build/launcher-tests \
+            -DCMAKE_BUILD_TYPE=Release -DPIVISTA_BUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build/launcher-tests --parallel "$(nproc)"
+
+      - name: Host Python tests
+        run: python3 -m unittest discover -s tests/unit -v
+
+      - name: Qt tests
+        run: ctest --test-dir build/launcher-tests --output-on-failure
+
+      - name: Offscreen UI smoke test
+        run: ./tests/ui/render_screens.sh build/launcher-tests/pivista-launcher
+
+      - name: Upload UI screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-screens
+          path: build/ui-tests/*.png
+          if-no-files-found: warn
+
+      - name: Stage launcher install tree
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          root="$RUNNER_TEMP/launcher-root"
+          install -d "$root/usr/bin" "$root/usr/share/pivista/webapps"
+          install -m 0755 build/launcher-tests/pivista-launcher \
+            "$root/usr/bin/pivista-launcher"
+          cp -a launcher/qml "$root/usr/share/pivista/qml"
+          install -m 0644 applications/web/catalog.json \
+            "$root/usr/share/pivista/webapps/catalog.json"
+          printf '{"schema": 1, "product": "pivista-tv", "version": "%s"}\n' \
+            "${{ steps.product.outputs.version }}" \
+            > "$root/usr/share/pivista/version.json"
+
+      - name: Package launcher bundle
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          SIGNING_KEY: ${{ secrets.PIVISTA_UPDATE_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          version="${{ steps.product.outputs.version }}"
+          out="$RUNNER_TEMP/bundle"
+          mkdir -p "$out"
+          if [ -n "${SIGNING_KEY:-}" ]; then
+            key="$RUNNER_TEMP/update-signing-key.pem"
+            printf '%s' "$SIGNING_KEY" > "$key"
+            chmod 600 "$key"
+            python3 tools/build-app-update.py \
+              --image-root "$RUNNER_TEMP/launcher-root" \
+              --version "$version" \
+              --key "$key" \
+              --out "$out" \
+              --release-tag "$GITHUB_REF_NAME" \
+              --notes "PiVista TV $version launcher bundle, built from $GITHUB_SHA."
+            rm -f "$key"
+          else
+            echo "::warning::PIVISTA_UPDATE_SIGNING_KEY is not configured; packaging an unsigned bundle that Settings -> Updates will reject."
+            tar -C "$RUNNER_TEMP/launcher-root/usr" \
+              -cJf "$out/pivista-launcher-${version}-arm64.tar.xz" bin share
+            ( cd "$out" && sha256sum "pivista-launcher-${version}-arm64.tar.xz" \
+                > "pivista-launcher-${version}-arm64.tar.xz.sha256" )
+            printf '%s\n' \
+              "This bundle was built without the update signing key. It is not accepted by PiVista Settings -> Updates." \
+              > "$out/UNSIGNED.txt"
+          fi
+
+      - name: Upload launcher bundle
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: launcher-bundle
+          path: ${{ runner.temp }}/bundle/*
+          if-no-files-found: error
+
+  publish:
+    name: Attach bundle to the release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: launcher-bundle
+          path: bundle
+
+      - name: Upload assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          files=(bundle/*)
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${files[@]}" --clobber
+          else
+            gh release create "$TAG" "${files[@]}" \
+              --title "PiVista TV ${TAG#v}" \
+              --draft \
+              --notes "Launcher bundle built by the Launcher workflow. Add the image, checksum and release notes before publishing."
+          fi

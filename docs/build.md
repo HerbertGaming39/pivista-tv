@@ -92,6 +92,42 @@ The app-update archive is separately deterministic for the same input files:
 manifest binds the exact archive size and SHA-256. The manifest is signed with
 the offline Ed25519 key; the private key is not in this repository.
 
+## Continuous integration (`.github/workflows/launcher.yml`)
+
+The workflow builds the launcher on an **arm64** GitHub-hosted runner inside
+`debian:trixie`, so it compiles against the same Qt 6.8 packages as the image.
+It does **not** build or publish the disk image; the image still needs the
+privileged loop-mount build described above.
+
+| Trigger | What runs |
+|---|---|
+| Pull request, push to `main`, manual dispatch | Configure, build, 82 Python tests, 15 Qt cases, 37 offscreen renders; screenshots are uploaded as a workflow artifact |
+| Push of a tag matching `v*` | The same checks, a tag/`PIVISTA_VERSION` match check, then a launcher bundle is attached to that GitHub release |
+
+On a tag, if the ref points at a release that does not exist yet, the workflow
+creates a **draft** with the launcher assets only. Add the image, checksum,
+manifest and release notes before publishing it.
+
+### Signing in CI
+
+The launcher bundle is only installable if `pivista-update.json` is signed with
+the Ed25519 update key. Add it as the repository secret
+`PIVISTA_UPDATE_SIGNING_KEY` (PEM contents, including the BEGIN/END lines) to
+sign in CI. The workflow writes it to a temporary `0600` file, signs, and
+deletes it.
+
+That convenience changes the trust model: the key that should stay offline is
+now readable by anyone who can change the workflow on the default branch or
+exfiltrate Actions secrets. Protect the repository and consider a protected
+GitHub Environment with required reviewers. Without the secret, the workflow
+still attaches a bundle and checksum, but marks it `UNSIGNED.txt` and PiVista's
+Settings → Updates will refuse it. The documented release process in
+[updates.md](updates.md) keeps signing on the offline machine.
+
+Private repositories need an arm64 runner available to them; `ubuntu-24.04-arm`
+is a GitHub-hosted label for public repositories. Replace `runs-on` with a
+self-hosted arm64 runner if needed.
+
 ## Adding a package or changing the product
 
 1. Edit `manifest/packages.lock` (add to `[runtime]`) or

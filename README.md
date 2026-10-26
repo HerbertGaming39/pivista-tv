@@ -147,7 +147,9 @@ RELEASE-NOTES.md
 ```
 
 Full details, including resource use and incremental builds, are in
-[docs/build.md](docs/build.md).
+[docs/build.md](docs/build.md). A GitHub Actions workflow builds and tests the
+launcher on an arm64 runner and, on a `v*` tag, attaches the launcher bundle to
+the release. See [docs/build.md#continuous-integration](docs/build.md#continuous-integration-githubworkflowslauncheryml).
 
 ## Hardware test release
 

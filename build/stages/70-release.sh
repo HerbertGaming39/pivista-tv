@@ -51,6 +51,18 @@ or use Raspberry Pi Imager / balenaEtcher. The image is unmodified Raspberry Pi
 OS media layout: a FAT32 boot partition and an ext4 root partition that grows
 to fill the card on first boot.
 
+## What updates in place and what needs this image
+
+- Launcher binary, QML, catalog and version file: signed updates from
+  Settings -> Updates on 0.3.0 and newer cards. User settings, favourites,
+  shortcuts, browser profiles and network configuration are preserved.
+- 0.3.2 changes OS packages and systemd units (openssh-server, wayvnc, the
+  non-sudo support account and pivista-vnc.service). A 0.3.1 card cannot gain
+  remote support from a launcher-only update; flash this image once.
+- 0.1.0 and 0.2.0 cards have no updater or public key. Reflash once; there is
+  no safe in-place path from those images.
+- Full-image A/B updates and automatic OS rollback are still not implemented.
+
 ## Honest status
 
 See \`STATUS.md\` and \`docs/streaming.md\` in the source repository. In short:

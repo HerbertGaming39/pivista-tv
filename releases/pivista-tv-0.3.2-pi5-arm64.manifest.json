@@ -7,14 +7,14 @@
     "sha256": "483db18a48da399b5b7022ffae9a07bc6d99daab30e593aedac09b69ff422843",
     "url": "https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2026-10-06/2026-10-06-raspios-trixie-arm64-lite.img.xz"
   },
-  "build_id": "20261026T155217Z",
+  "build_id": "20261026T160333Z",
   "codename": "Harbor",
-  "created_utc": "2026-10-26T15:56:45Z",
+  "created_utc": "2026-10-26T16:06:01Z",
   "image": {
     "compression": "xz",
     "file": "pivista-tv-0.3.2-pi5-arm64.img.xz",
-    "sha256": "1a0442f5882fb01fe533d8cbbf545c4db39c3be0f9761cd3d4b9aeb5b3e64873",
-    "size_bytes": 1240447344
+    "sha256": "0145c6d4711e7d781750b7cca844029c55086e0a0b0fae967e7177a084c68a45",
+    "size_bytes": 1240441036
   },
   "known_limitations": [
     "No physical Raspberry Pi 5 boot test was performed by the build host.",
@@ -24,11 +24,11 @@
   "launcher": "PiVista TV launcher 0.3.2",
   "product": "PiVista TV",
   "provenance": {
-    "build_log_sha256": "30f90f35ca196b19035366677b0b747599badcef7b0ad36474d6b2325cb87c3b",
+    "build_log_sha256": "ed59070f9b797f103121c276be155787e03c9c1c71f62a67ff7b6203bb6e9520",
     "builder": "build.sh",
     "host_arch": "x86_64",
     "reproducibility": "pinned inputs and deterministic configuration; not bit-for-bit reproducible",
-    "source_commit": "9860e049a111698bdce76967e12efc9b57dfd367",
+    "source_commit": "45ec6f12b2a460b169b69a79d4dfd76f52857c73",
     "source_dirty": true
   },
   "schema": 1,

@@ -1,6 +1,6 @@
 # PiVista TV — status
 
-Updated: 2026-10-26 · Version 0.3.2 "Harbor" · Build `20261026T155217Z`
+Updated: 2026-10-26 · Version 0.3.2 "Harbor" · Build `20261026T160333Z`
 
 Build host: x86_64 WSL2 (Ubuntu). The image was validated and its launcher was
 rendered from the sealed filesystem under qemu-user. It has **not** been booted
@@ -144,11 +144,11 @@ Status vocabulary:
 | Field | Value |
 |---|---|
 | Image | `releases/pivista-tv-0.3.2-pi5-arm64.img.xz` |
-| Size | `1,240,447,344 bytes (1.24 GB / 1.16 GiB compressed)` |
-| SHA-256 | `1a0442f5882fb01fe533d8cbbf545c4db39c3be0f9761cd3d4b9aeb5b3e64873` |
-| Build ID | `20261026T155217Z` |
+| Size | `1,240,441,036 bytes (1.24 GB / 1.16 GiB compressed)` |
+| SHA-256 | `0145c6d4711e7d781750b7cca844029c55086e0a0b0fae967e7177a084c68a45` |
+| Build ID | `20261026T160333Z` |
 | Packages | 1051 installed (versions in the manifest) |
-| Source state | See the artifact manifest's `provenance.source_commit`; the launcher and image were sealed from the release commit |
+| Source state | Commit `45ec6f1`; the manifest records `source_dirty: true` only because the tracked release checksum is rewritten during packaging |
 | Hardware test checklist | [docs/hardware-test.md](docs/hardware-test.md) |
 
 ## What is deliberately absent

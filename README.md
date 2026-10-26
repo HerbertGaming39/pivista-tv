@@ -161,9 +161,9 @@ where a local build writes it.
 | Field | Value |
 |---|---|
 | Image | [`pivista-tv-0.3.2-pi5-arm64.img.xz`](https://github.com/HerbertGaming39/pivista-tv/releases/download/v0.3.2/pivista-tv-0.3.2-pi5-arm64.img.xz) |
-| Size | 1,240,447,344 bytes (1.24 GB compressed) |
-| SHA-256 | `1a0442f5882fb01fe533d8cbbf545c4db39c3be0f9761cd3d4b9aeb5b3e64873` |
-| Build ID | `20261026T155217Z` |
+| Size | 1,240,441,036 bytes (1.24 GB compressed) |
+| SHA-256 | `0145c6d4711e7d781750b7cca844029c55086e0a0b0fae967e7177a084c68a45` |
+| Build ID | `20261026T160333Z` |
 | Host tests | 82 host Python tests, 15 launcher/Qt cases, 37 offscreen screen renders, 61 image checks (this build) |
 | Hardware test checklist | [docs/hardware-test.md](docs/hardware-test.md) |
 

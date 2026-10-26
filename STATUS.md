@@ -30,6 +30,8 @@ Status vocabulary:
 | Release discovery on GitHub | Verified | Fake-release unit tests; stable/prerelease filtering, drafts ignored |
 | Live discovery of published v0.3.0 | Verified | Real GitHub API check on 2026-10-25; `v0.3.0` found, signed manifest verified with the installed public key, no update offered while installed version matches |
 | Live discovery of published v0.3.1 | Verified | Real GitHub API check on 2026-10-25; `v0.3.1` found, signed manifest verified with the installed public key; a simulated 0.3.0 install reports `available: true` with bundle SHA-256 `47e44d…` |
+| Live discovery of published v0.3.2 | Verified | Real GitHub API check on 2026-10-26 after publishing: signed manifest verified; a simulated 0.3.1 install reports latest `0.3.2`, `available: false` and the reason “needs PiVista 0.3.2 or newer; this image must be reflashed once”; a 0.3.2 install reports itself current |
+| Launcher bundle for 0.3.2 | Verified | Signed bundle published for discovery and for future cards; `min_version`/`min_system` 0.3.2 make it deliberately non-installable on 0.3.1 because remote support needs the new image |
 | Signed manifest verification | Verified | Ed25519 test key; corrupted signature and malformed manifests rejected |
 | Archive integrity | Verified | SHA-256 and exact size checked against the signed manifest; corrupt and interrupted downloads rejected |
 | HTTPS / host restriction | Verified | `https://` required; redirects limited to GitHub hosts |
